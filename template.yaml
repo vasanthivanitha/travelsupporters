@@ -7,7 +7,13 @@ Parameters:
     Default: ''
     AllowedValues: ['', 'https://travelsupporters.com']
     Description: HTTPS origin when deploying the API for the existing website.
+  AdminCloudFrontOrigin:
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|^https://[a-z0-9]+[.]cloudfront[.]net$'
+    Description: HTTPS origin of the existing CloudFront distribution for administrator sign-in.
 Conditions:
+  HasAdminCloudFrontOrigin: !Not [!Equals [!Ref AdminCloudFrontOrigin, '']]
   CreateWebsite: !Equals [!Ref ExistingWebsiteOrigin, '']
 Resources:
   WebsiteBucket:
@@ -119,8 +125,12 @@ Resources:
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthFlows: [code]
       AllowedOAuthScopes: [openid]
-      CallbackURLs: [https://travelsupporters.com/admin.html]
-      LogoutURLs: [https://travelsupporters.com/admin.html]
+      CallbackURLs:
+        - https://travelsupporters.com/admin.html
+        - !If [HasAdminCloudFrontOrigin, !Sub '${AdminCloudFrontOrigin}/admin.html', !Ref 'AWS::NoValue']
+      LogoutURLs:
+        - https://travelsupporters.com/admin.html
+        - !If [HasAdminCloudFrontOrigin, !Sub '${AdminCloudFrontOrigin}/admin.html', !Ref 'AWS::NoValue']
       AccessTokenValidity: 15
       TokenValidityUnits:
         AccessToken: minutes
@@ -236,4 +246,4 @@ Outputs:
     Value: !Ref AdminPool
   AdminConfig:
     Value: !Sub >-
-      {"clientId":"${AdminClient}","loginOrigin":"https://${AdminDomain}.auth.${AWS::Region}.amazoncognito.com","api":"https://${RegistrationApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/api/admin/listings"}
+      {"clientId":"${AdminClient}","cloudFrontOrigin":"${AdminCloudFrontOrigin}","loginOrigin":"https://${AdminDomain}.auth.${AWS::Region}.amazoncognito.com","api":"https://${RegistrationApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/api/admin/listings"}

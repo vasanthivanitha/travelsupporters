@@ -42,7 +42,7 @@ To publish a previously submitted trip with the traveler's permission, open **Dy
 
 ## Manage listings in the admin panel
 
-Deploy the latest stack and open [Listing administration](https://travelsupporters.com/admin.html). The custom domain must serve the site over HTTPS for Cognito to return you to the panel.
+Deploy the latest stack and open the HTTPS admin URL printed by the script. The managed deployment supports the CloudFront URL directly as well as [the custom domain](https://travelsupporters.com/admin.html) when DNS and HTTPS are set up.
 
 To invite your first administrator, open **Amazon Cognito → User pools** in the stack's AWS region, select the user pool ID printed by the deploy script, and open **Users → Create user**. Enter the administrator's email and send the invitation. Sign in with the temporary password and set a new password when prompted. Only invite trusted administrators. Self-registration is disabled, and every account in this dedicated pool can manage listings.
 

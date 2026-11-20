@@ -7,6 +7,7 @@ const nextPage = document.querySelector("#nextPage");
 const callback = location.origin + location.pathname;
 const transactionKey = "travel-supports-admin-login";
 let config;
+let adminEndpoint;
 let accessToken;
 let after;
 
@@ -54,7 +55,7 @@ function showSignedOut(message) {
   status.textContent = message;
   review.hidden = true;
   signOut.hidden = true;
-  signIn.hidden = !config || location.origin !== "https://travelsupporters.com";
+  signIn.hidden = !adminEndpoint;
 }
 
 async function adminRequest(url, options = {}) {
@@ -91,7 +92,7 @@ function showRegistration(registration) {
     if (published && !window.confirm("Publish this trip’s route, date, and help categories? Confirm you have the traveler’s permission.")) return;
     action.disabled = true;
     try {
-      const result = await adminRequest(config.api, {
+      const result = await adminRequest(adminEndpoint, {
         method: "PATCH", body: JSON.stringify({id: registration.id, published}),
       });
       if (!result) return;
@@ -111,7 +112,7 @@ async function loadPage() {
   nextPage.disabled = true;
   status.textContent = "Loading registrations…";
   try {
-    const url = new URL(config.api);
+    const url = new URL(adminEndpoint, location.origin);
     if (after) url.searchParams.set("after", after);
     const result = await adminRequest(url);
     if (!result) return;
@@ -139,13 +140,21 @@ signOut.addEventListener("click", () => {
 nextPage.addEventListener("click", loadPage);
 
 async function initialize() {
-  if (location.origin !== "https://travelsupporters.com") {
-    showSignedOut("Open https://travelsupporters.com/admin.html to sign in.");
+  if (location.protocol !== "https:") {
+    showSignedOut("Open the website over HTTPS to sign in.");
     return;
   }
   const response = await fetch("admin-config.json", {cache: "no-store"});
   if (!response.ok) throw new Error("The administrator sign-in configuration has not been deployed.");
   config = await response.json();
+  if (location.origin === "https://travelsupporters.com") {
+    adminEndpoint = config.api;
+  } else if (config.cloudFrontOrigin && location.origin === config.cloudFrontOrigin) {
+    adminEndpoint = "/api/admin/listings";
+  } else {
+    showSignedOut("This address is not registered for sign-in. Open https://travelsupporters.com/admin.html or use the CloudFront URL printed by the deploy script.");
+    return;
+  }
   if (!location.search) {
     showSignedOut("Sign in to review and edit listings.");
     return;

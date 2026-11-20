@@ -5,14 +5,26 @@ cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 stack="${1:-travel-supporters}"
 region="${2:-us-east-1}"
 aws sts get-caller-identity --region "$region"
-sam validate --region "$region"
-sam deploy --template-file template.yaml --stack-name "$stack" --region "$region" \
-  --resolve-s3 --capabilities CAPABILITY_IAM --no-fail-on-empty-changeset
-
 stack_output() {
   aws cloudformation describe-stacks --stack-name "$stack" --region "$region" \
     --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue | [0]" --output text
 }
+
+deploy_stack() {
+  sam deploy --template-file template.yaml --stack-name "$stack" --region "$region" \
+    --resolve-s3 --capabilities CAPABILITY_IAM --no-fail-on-empty-changeset "$@"
+}
+
+sam validate --region "$region"
+if existing_website="$(stack_output WebsiteUrl 2>/dev/null)" && [[ "$existing_website" == https://*.cloudfront.net ]]; then
+  deploy_stack --parameter-overrides "AdminCloudFrontOrigin=$existing_website"
+else
+  deploy_stack
+  new_website="$(stack_output WebsiteUrl)"
+  if [[ "$new_website" == https://*.cloudfront.net ]]; then
+    deploy_stack --parameter-overrides "AdminCloudFrontOrigin=$new_website"
+  fi
+fi
 
 bucket="$(stack_output WebsiteBucketName)"
 website="$(stack_output WebsiteUrl)"
@@ -31,10 +43,16 @@ admin_config="$(mktemp)"
 trap 'rm -f -- "$admin_config"' EXIT
 stack_output AdminConfig > "$admin_config"
 aws s3 cp "$admin_config" "s3://$bucket/admin-config.json" --content-type application/json --cache-control no-store --region "$region"
-for asset in admin.html admin.js style.css; do
-  aws s3 cp "web/$asset" "s3://$bucket/$asset" --region "$region"
+aws s3 sync web/ "s3://$bucket/" --region "$region"
+printf 'Website: %s\nAdmin panel: %s/admin.html\nCognito user pool: %s\nDynamoDB table: %s\n' \
+  "$website" "$website" "$(stack_output AdminPoolId)" "$table"
+
+for page in "/" "/admin.html"; do
+  if ! curl --fail --silent --show-error --retry 3 --retry-delay 5 --max-time 15 "$website$page" >/dev/null; then
+    printf 'CloudFront did not serve %s. Check the distribution origin and S3 bucket policy.\n' "$website$page" >&2
+    exit 1
+  fi
 done
-printf 'Admin panel: https://travelsupporters.com/admin.html\nCognito user pool: %s\n' "$(stack_output AdminPoolId)"
 
 for ((attempt = 1; attempt <= 40; attempt++)); do
   index_status="$(aws dynamodb describe-table --table-name "$table" --region "$region" \
@@ -51,10 +69,9 @@ if [[ "$index_status" != ACTIVE ]]; then
 fi
 
 if ! curl --fail --silent --show-error --retry 4 --retry-delay 3 --max-time 15 "$api" >/dev/null; then
-  echo "Trip board API failed its health check. Read the Lambda logs with:" >&2
+  echo "The site was uploaded, but the trip board API failed its health check. Read the Lambda logs with:" >&2
   printf 'sam logs --name Register --stack-name %q --region %q --tail\n' "$stack" "$region" >&2
   exit 1
 fi
 
-aws s3 sync web/ "s3://$bucket/" --region "$region"
-printf 'Website: %s\nDynamoDB table: %s\n' "$website" "$table"
+printf 'Trip board API is ready.\n'
