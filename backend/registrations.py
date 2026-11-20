@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import unicodedata
 from datetime import date, timedelta, datetime, timezone
 from uuid import UUID
 
@@ -79,6 +80,27 @@ def validate(payload):
     }
 
 
+def public_languages(table, items):
+    if not items:
+        return {}
+    try:
+        result = dynamodb.batch_get_item(RequestItems={
+            table: {
+                "Keys": [{"id": item["id"]} for item in items],
+                "ProjectionExpression": "#id, #language",
+                "ExpressionAttributeNames": {"#id": "id", "#language": "publicLanguage"},
+            }
+        })
+    except ClientError as error:
+        logger.warning("Public language lookup failed: code=%s", error.response.get("Error", {}).get("Code"))
+        return {}
+    return {
+        item["id"]["S"]: item["publicLanguage"]["S"]
+        for item in result["Responses"].get(table, [])
+        if "publicLanguage" in item
+    }
+
+
 def list_trips(event):
     params = event.get("queryStringParameters") or {}
     today = datetime.now(timezone.utc).date().isoformat()
@@ -125,12 +147,15 @@ def list_trips(event):
             error.response.get("ResponseMetadata", {}).get("RequestId", "unknown"),
         )
         return reply(503, message="The trip board is temporarily unavailable. Try again.")
+    items = results.get("Items", [])
+    languages = public_languages(query["TableName"], items)
     trips = [
         {
             **{key: item[key]["S"] for key in ("role", "from", "to", "date")},
             "support": [value["S"] for value in item.get("support", {}).get("L", [])],
+            "language": languages.get(item["id"]["S"]),
         }
-        for item in results.get("Items", [])
+        for item in items
     ]
     last = results.get("LastEvaluatedKey")
     return reply(200, trips=trips, after=last["date"]["S"] + "/" + last["id"]["S"] if last else None)
@@ -148,8 +173,14 @@ def handler(event, context):
         payload = json.loads(body)
         record = validate(payload)
         publish = payload.get("publish", False)
-        if type(publish) is not bool:
-            raise ValueError("Check the trip board preference.")
+        share_language = payload.get("shareLanguage", False)
+        if type(publish) is not bool or type(share_language) is not bool or (share_language and not publish):
+            raise ValueError("Check the trip board preferences.")
+        if share_language:
+            language = record["language"]
+            if any(not (char.isalpha() or unicodedata.category(char).startswith("M") or char in " ,-'’") for char in language):
+                raise ValueError("Enter only language names separated by commas to share them publicly.")
+            record["publicLanguage"] = language
     except ValueError as error:
         message = "Send valid JSON." if isinstance(error, json.JSONDecodeError) else str(error)
         return reply(400, message=message)

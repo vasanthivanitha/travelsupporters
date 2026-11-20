@@ -44,7 +44,7 @@ trap 'rm -rf -- "$stage"' EXIT
 revision="$(sha256sum web/app.js | cut -c1-16)"
 app_file="travel-registration-$revision.js"
 sed -e "/<title>/i <meta name=\"registration-endpoint\" content=\"$endpoint\">" \
-  -e "s/src=\"app.js\"/src=\"$app_file\"/" web/index.html > "$stage/index.html"
+  -e "s/src=\"app[.]js[^\"]*\"/src=\"$app_file\"/" web/index.html > "$stage/index.html"
 
 stack_output AdminConfig > "$stage/admin-config.json"
 aws s3 cp "$stage/admin-config.json" "s3://$bucket/admin-config.json" --content-type application/json --cache-control no-store --region "$region"

@@ -9,7 +9,9 @@ const supportTypes = {
 const filters = document.querySelector("#filters");
 const form = document.querySelector("#tripForm");
 const editor = document.querySelector("#editor");
-const cards = document.querySelector("#cards");
+const tripResults = document.querySelector("#tripResults");
+const tripRows = document.querySelector("#tripRows");
+const dateFormat = new Intl.DateTimeFormat("en-US", {dateStyle: "medium"});
 const count = document.querySelector("#count");
 const formStatus = document.querySelector("#formStatus");
 const registrationStatus = document.querySelector("#registrationStatus");
@@ -81,21 +83,32 @@ function append(parent, tag, value, className) {
   parent.append(element);
   return element;
 }
+function tripCell(row, label) {
+  const cell = row.insertCell();
+  cell.setAttribute("role", "cell");
+  append(cell, "span", label, "trip-cell-label").setAttribute("aria-hidden", "true");
+  return cell;
+}
 function render() {
-  cards.replaceChildren();
+  tripRows.replaceChildren();
+  tripResults.hidden = loadedTrips.length === 0;
   for (const trip of loadedTrips) {
-    const card = document.createElement("article");
-    card.className = "card";
-    append(card, "span", trip.role === "offer" ? "Offering help" : "Looking for help", "badge");
-    append(card, "h3", airport(trip.from) + " to " + airport(trip.to));
-    const date = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(trip.date + "T12:00:00"));
-    append(card, "p", date);
+    const row = tripRows.insertRow();
+    row.setAttribute("role", "row");
+    const date = append(tripCell(row, "Travel date"), "time", dateFormat.format(new Date(trip.date + "T12:00:00")));
+    date.dateTime = trip.date;
+    append(tripCell(row, "From"), "span", airport(trip.from));
+    append(tripCell(row, "To"), "span", airport(trip.to));
+    append(tripCell(row, "Trip type"), "span", trip.role === "offer" ? "Supporter offer" : "Companion request", "badge");
+    append(tripCell(row, "Languages spoken"), "span", trip.language || "Not shared");
+    const supportCell = tripCell(row, "Type of help");
     const types = trip.support.map(type => supportTypes[type]).filter(Boolean);
     if (types.length) {
-      const list = append(card, "ul", "", "support-tags");
+      const list = append(supportCell, "ul", "", "support-tags");
       for (const type of types) append(list, "li", type);
+    } else {
+      append(supportCell, "span", "Not specified");
     }
-    cards.append(card);
   }
 }
 async function loadTrips(reset = false) {
@@ -133,6 +146,7 @@ async function loadTrips(reset = false) {
 function openForm(selectedRole) {
   role = selectedRole;
   form.reset();
+  form.elements.shareLanguage.disabled = true;
   formStatus.textContent = "";
   form.elements.date.min = localDate(new Date());
   form.querySelectorAll("input[list]").forEach(updateAirport);
@@ -153,6 +167,10 @@ filters.addEventListener("submit", event => {
   loadTrips(true);
 });
 moreTrips.addEventListener("click", () => loadTrips());
+form.elements.publish.addEventListener("change", () => {
+  form.elements.shareLanguage.disabled = !form.elements.publish.checked;
+  if (!form.elements.publish.checked) form.elements.shareLanguage.checked = false;
+});
 form.addEventListener("submit", async event => {
   event.preventDefault();
   const fields = new FormData(form);
@@ -163,7 +181,7 @@ form.addEventListener("submit", async event => {
     return;
   }
   const trip = {
-    role, date, support, email: email.trim(), publish: fields.has("publish"),
+    role, date, support, email: email.trim(), publish: fields.has("publish"), shareLanguage: fields.has("shareLanguage"),
     connection: connection.toUpperCase(), flex: Number(flex),
     traveler: role === "request" ? traveler : "", scope: role === "offer" ? scope : "",
     from: from.toUpperCase(), to: to.toUpperCase(),

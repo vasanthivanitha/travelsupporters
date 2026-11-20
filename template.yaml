@@ -95,6 +95,14 @@ Resources:
             - Effect: Allow
               Action: dynamodb:Query
               Resource: !Sub '${Registrations.Arn}/index/PublicTrips'
+            - Effect: Allow
+              Action: dynamodb:BatchGetItem
+              Resource: !GetAtt Registrations.Arn
+              Condition:
+                ForAllValues:StringEquals:
+                  dynamodb:Attributes: [id, publicLanguage]
+                'Null':
+                  dynamodb:Attributes: 'false'
       Events:
         RegisterTrip:
           Type: HttpApi

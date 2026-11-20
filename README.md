@@ -36,7 +36,7 @@ Run `curl -I https://travelsupporters.com/` to verify the domain responds succes
 
 Open the printed website URL and submit one companion request and one supporter offer using test data. Find each confirmation ID in the DynamoDB console under the table's **Explore table items** view. The `role` value is `request` or `offer`. Use authorized AWS access to view entries and contact emails. The table is retained if the CloudFormation stack is removed.
 
-The trip board displays upcoming companion requests and supporter offers that opt into publication. The public API returns only airport codes, date, registration type, and selected help categories for each trip. Names, contact emails, notes, and flight numbers stay private for operator follow-up. New opt-in submissions appear automatically after DynamoDB indexes them.
+The trip board displays upcoming companion requests and supporter offers that opt into publication. The public API returns only airport codes, date, registration type, selected help categories, and spoken languages if separately shared. Earlier registrations show **Not shared** for languages. Names, contact emails, notes, and flight numbers stay private for operator follow-up. New opt-in submissions appear automatically after DynamoDB indexes them.
 
 To publish a previously submitted trip with the traveler's permission, open **DynamoDB → Explore table items**, select the registration by its reference ID, and add the String attribute `listing` with value `PUBLIC`. Remove that attribute to unlist a trip. Earlier records stay private until this field is set. The `PublicTrips` index can take a few minutes to become active on the first deployment.
 
