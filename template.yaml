@@ -1,9 +1,18 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Travel Supporters website and registration API
+Parameters:
+  ExistingWebsiteOrigin:
+    Type: String
+    Default: ''
+    AllowedValues: ['', 'https://travelsupporters.com']
+    Description: HTTPS origin when deploying the API for the existing website.
+Conditions:
+  CreateWebsite: !Equals [!Ref ExistingWebsiteOrigin, '']
 Resources:
   WebsiteBucket:
     Type: AWS::S3::Bucket
+    Condition: CreateWebsite
     Properties:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
@@ -33,6 +42,11 @@ Resources:
   RegistrationApi:
     Type: AWS::Serverless::HttpApi
     Properties:
+      CorsConfiguration:
+        AllowOrigins: [https://travelsupporters.com]
+        AllowHeaders: [content-type]
+        AllowMethods: [POST]
+        MaxAge: 600
       DefaultRouteSettings:
         ThrottlingBurstLimit: 20
         ThrottlingRateLimit: 5
@@ -60,6 +74,7 @@ Resources:
             Method: POST
   WebsiteAccess:
     Type: AWS::CloudFront::OriginAccessControl
+    Condition: CreateWebsite
     Properties:
       OriginAccessControlConfig:
         Name: !Sub '${AWS::StackName}-website'
@@ -68,6 +83,7 @@ Resources:
         SigningProtocol: sigv4
   Distribution:
     Type: AWS::CloudFront::Distribution
+    Condition: CreateWebsite
     Properties:
       DistributionConfig:
         Enabled: true
@@ -96,6 +112,7 @@ Resources:
             OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
   WebsiteBucketPolicy:
     Type: AWS::S3::BucketPolicy
+    Condition: CreateWebsite
     Properties:
       Bucket: !Ref WebsiteBucket
       PolicyDocument:
@@ -111,8 +128,12 @@ Resources:
                 AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}'
 Outputs:
   WebsiteBucketName:
+    Condition: CreateWebsite
     Value: !Ref WebsiteBucket
   WebsiteUrl:
+    Condition: CreateWebsite
     Value: !Sub 'https://${Distribution.DomainName}'
+  RegistrationEndpoint:
+    Value: !Sub 'https://${RegistrationApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/api/registrations'
   RegistrationsTableName:
     Value: !Ref Registrations

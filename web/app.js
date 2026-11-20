@@ -151,6 +151,10 @@ form.addEventListener("submit", async event => {
     to: to === "other" ? toCustom.toUpperCase() : to,
     name: name.trim(), language: language.trim(), flight: flight.trim().toUpperCase(), help: help.trim()
   };
+  if (location.protocol !== "https:") {
+    formStatus.textContent = "Open the HTTPS website before submitting a registration.";
+    return;
+  }
   const submit = form.querySelector('[type="submit"]');
   if (submit.disabled) return;
   const payload = JSON.stringify(trip);
@@ -162,7 +166,8 @@ form.addEventListener("submit", async event => {
   close.disabled = true;
   formStatus.textContent = "Submitting your registration…";
   try {
-    const response = await fetch("/api/registrations", {
+    const endpoint = document.querySelector('meta[name="registration-endpoint"]')?.content || "/api/registrations";
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({...trip, id: pendingRegistration.id}),
