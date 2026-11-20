@@ -1,0 +1,118 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Travel Supporters website and registration API
+Resources:
+  WebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+  Registrations:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+  RegistrationApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 5
+  Register:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: registrations.handler
+      Runtime: python3.13
+      Timeout: 8
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref Registrations
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: dynamodb:PutItem
+              Resource: !GetAtt Registrations.Arn
+      Events:
+        RegisterTrip:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref RegistrationApi
+            Path: /api/registrations
+            Method: POST
+  WebsiteAccess:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-website'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        Origins:
+          - Id: Website
+            DomainName: !GetAtt WebsiteBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt WebsiteAccess.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+          - Id: RegistrationApi
+            DomainName: !Sub '${RegistrationApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}'
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+        DefaultCacheBehavior:
+          TargetOriginId: Website
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          Compress: true
+        CacheBehaviors:
+          - PathPattern: /api/*
+            TargetOriginId: RegistrationApi
+            ViewerProtocolPolicy: https-only
+            AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac
+  WebsiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref WebsiteBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${WebsiteBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}'
+Outputs:
+  WebsiteBucketName:
+    Value: !Ref WebsiteBucket
+  WebsiteUrl:
+    Value: !Sub 'https://${Distribution.DomainName}'
+  RegistrationsTableName:
+    Value: !Ref Registrations
