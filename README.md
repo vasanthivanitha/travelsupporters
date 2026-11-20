@@ -1,6 +1,6 @@
 # Travel Supporters
 
-The website in `web/` supports companion requests and supporter offers for international flights departing from India. Type a three-letter IATA airport code in either form. Suggestions and airport names come from the bundled public-domain [OurAirports directory](https://ourairports.com/data/). Codes missing from the directory can still be entered. Both registration forms submit to `POST /api/registrations`. API Gateway invokes a Python Lambda function that validates the form and writes either a companion request or a supporter offer to DynamoDB. The confirmation displays a reference ID. Retrying the same submission from the open page reuses that ID.
+The website in `web/` supports companion requests and supporter offers for international flights to and from India. Type a three-letter IATA airport code in either form. Suggestions and airport names come from the bundled public-domain [OurAirports directory](https://ourairports.com/data/). Codes missing from the directory can still be entered. Both registration forms submit to `POST /api/registrations`. API Gateway invokes a Python Lambda function that validates the form and writes either a companion request or a supporter offer to DynamoDB. The confirmation displays a reference ID. Retrying the same submission from the open page reuses that ID.
 
 ## Deploy to AWS
 
@@ -36,7 +36,7 @@ Run `curl -I https://travelsupporters.com/` to verify the domain responds succes
 
 Open the printed website URL and submit one companion request and one supporter offer using test data. Find each confirmation ID in the DynamoDB console under the table's **Explore table items** view. The `role` value is `request` or `offer`. Use authorized AWS access to view entries and contact emails. The table is retained if the CloudFormation stack is removed.
 
-The trip board displays upcoming companion requests and supporter offers that opt into publication. The public API returns only airport codes, date, registration type, selected help categories, and spoken languages if separately shared. Earlier registrations show **Not shared** for languages. Names, contact emails, notes, and flight numbers stay private for operator follow-up. New opt-in submissions appear automatically after DynamoDB indexes them.
+The trip board displays upcoming companion requests and supporter offers that opt into publication. The public API returns only airport codes, date, registration type, selected help categories, and spoken languages if separately shared. Earlier registrations show **Not shared** for languages. Names, email addresses, phone numbers, notes, and detailed itineraries stay private for operator follow-up. New opt-in submissions appear automatically after DynamoDB indexes them.
 
 To publish a previously submitted trip with the traveler's permission, open **DynamoDB → Explore table items**, select the registration by its reference ID, and add the String attribute `listing` with value `PUBLIC`. Remove that attribute to unlist a trip. Earlier records stay private until this field is set. The `PublicTrips` index can take a few minutes to become active on the first deployment.
 

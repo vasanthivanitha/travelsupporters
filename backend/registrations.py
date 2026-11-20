@@ -68,9 +68,9 @@ def validate(payload):
     traveler = field(payload, "traveler", 30)
     if scope not in SCOPES or traveler not in TRAVELERS or (role == "request" and scope) or (role == "offer" and traveler):
         raise ValueError("Check the details for this registration type.")
-    return {
+    record = {
         "id": raw_id, "role": role, "from": departure, "to": arrival, "date": travel_date,
-        "name": field(payload, "name", 40, required=True),
+        "name": field(payload, "name", 100, required=True),
         "email": field(payload, "email", 254, r"[^\s@]+@[^\s@]+\.[^\s@]+", True),
         "language": field(payload, "language", 50, required=True),
         "flight": field(payload, "flight", 15, r"[A-Z0-9 -]+"),
@@ -78,6 +78,30 @@ def validate(payload):
         "support": sorted(set(support)), "flex": flex, "help": notes,
         "scope": scope, "traveler": traveler,
     }
+
+    optional_fields = {
+        "phoneAbroad": (25, r"[+0-9(). -]+"),
+        "phoneIndia": (25, r"[+0-9(). -]+"),
+        "direction": (8, r"inbound|outbound"),
+        "airline": (80, None),
+        "fromCity": (80, None),
+        "toCity": (80, None),
+        "departureTime": (5, r"(?:[01]\d|2[0-3]):[0-5]\d"),
+        "connectingFlight1": (40, None),
+        "connectingFlight2": (40, None),
+        "elder": (3, r"yes|no"),
+        "payment": (6, r"free|charge"),
+    }
+    for key, (limit, pattern) in optional_fields.items():
+        value = field(payload, key, limit, pattern)
+        if value:
+            record[key] = value
+    for key in ("phoneAbroad", "phoneIndia"):
+        if key in record and not 7 <= sum(char.isdigit() for char in record[key]) <= 15:
+            raise ValueError("Enter a contact number with 7 to 15 digits.")
+    if role == "request" and ("elder" in record or "payment" in record):
+        raise ValueError("Supporter preferences apply to offers.")
+    return record
 
 
 def public_languages(table, items):

@@ -22,10 +22,13 @@ function localDate(date) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 const endpoint = document.querySelector('meta[name="registration-endpoint"]')?.content || "/api/registrations";
-const moreTrips = document.querySelector("#moreTrips");
+const retryTrips = document.querySelector("#retryTrips");
+const tripSearch = document.querySelector("#tripSearch");
+const tripSort = document.querySelector("#tripSort");
+const collator = new Intl.Collator("en", {sensitivity: "base"});
 let airportData = {};
 let loadedTrips = [];
-let after = null;
+let boardLoaded = false;
 let search = new URLSearchParams();
 let boardRequest = 0;
 
@@ -45,6 +48,11 @@ function updateAirport(input) {
   input.value = input.value.toUpperCase();
   const code = input.value;
   const airport = airportData[code];
+  const inputIsInIndia = input.form === form
+    ? (input.name === "from") === (form.elements.direction.value === "outbound")
+    : null;
+  const wrongCountry = airport && inputIsInIndia !== null && (airport[1] === "IN") !== inputIsInIndia;
+  input.setCustomValidity(wrongCountry ? "Choose an airport that matches the travel direction." : "");
   const hint = document.getElementById(input.getAttribute("aria-describedby"));
   hint.textContent = code.length === 3
     ? airport?.[0] || "Airport name unavailable. Check the code before continuing."
@@ -52,7 +60,7 @@ function updateAirport(input) {
   const suggestions = [];
   if (/^[A-Z]{1,3}$/.test(code)) {
     for (const [iata, [name, country]] of Object.entries(airportData)) {
-      if (!iata.startsWith(code) || (input.name === "from" ? country !== "IN" : country === "IN")) continue;
+      if (!iata.startsWith(code) || (inputIsInIndia !== null && (country === "IN") !== inputIsInIndia)) continue;
       suggestions.push(new Option(name, iata));
       if (suggestions.length === 20) break;
     }
@@ -62,6 +70,9 @@ function updateAirport(input) {
 for (const input of airportInputs) {
   input.addEventListener("input", () => updateAirport(input));
 }
+form.elements.direction.addEventListener("change", () => {
+  form.querySelectorAll("input[list]").forEach(updateAirport);
+});
 fetch("airports.json").then(response => {
   if (!response.ok) throw new Error("Airport directory unavailable");
   return response.json();
@@ -89,58 +100,83 @@ function tripCell(row, label) {
   append(cell, "span", label, "trip-cell-label").setAttribute("aria-hidden", "true");
   return cell;
 }
+function tripType(trip) {
+  return trip.role === "offer" ? "Supporter offer" : "Companion request";
+}
+function travelDate(trip) {
+  return dateFormat.format(new Date(trip.date + "T12:00:00"));
+}
 function render() {
+  const terms = tripSearch.value.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
+  const rows = loadedTrips.filter(trip => {
+    if (!terms.length) return true;
+    const searchable = [trip.date, travelDate(trip), airport(trip.from), airport(trip.to), tripType(trip), trip.language]
+      .join(" ").toLocaleLowerCase();
+    return terms.every(term => searchable.includes(term));
+  });
+  const sort = tripSort.value;
+  const sortValues = {
+    soonest: trip => trip.date,
+    latest: trip => trip.date,
+    from: trip => airport(trip.from),
+    to: trip => airport(trip.to),
+    language: trip => trip.language || "",
+    role: tripType
+  };
+  rows.sort((first, second) => {
+    const key = sortValues[sort];
+    const a = key(first);
+    const b = key(second);
+    if (sort === "language" && Boolean(a) !== Boolean(b)) return a ? -1 : 1;
+    return (sort === "latest" ? -1 : 1) * collator.compare(a, b) || collator.compare(first.date, second.date);
+  });
   tripRows.replaceChildren();
-  tripResults.hidden = loadedTrips.length === 0;
-  for (const trip of loadedTrips) {
+  tripResults.hidden = rows.length === 0;
+  for (const trip of rows) {
     const row = tripRows.insertRow();
     row.setAttribute("role", "row");
-    const date = append(tripCell(row, "Travel date"), "time", dateFormat.format(new Date(trip.date + "T12:00:00")));
+    const date = append(tripCell(row, "Travel date"), "time", travelDate(trip));
     date.dateTime = trip.date;
     append(tripCell(row, "From"), "span", airport(trip.from));
     append(tripCell(row, "To"), "span", airport(trip.to));
-    append(tripCell(row, "Trip type"), "span", trip.role === "offer" ? "Supporter offer" : "Companion request", "badge");
+    append(tripCell(row, "Trip type"), "span", tripType(trip), "badge");
     append(tripCell(row, "Languages spoken"), "span", trip.language || "Not shared");
-    const supportCell = tripCell(row, "Type of help");
-    const types = trip.support.map(type => supportTypes[type]).filter(Boolean);
-    if (types.length) {
-      const list = append(supportCell, "ul", "", "support-tags");
-      for (const type of types) append(list, "li", type);
-    } else {
-      append(supportCell, "span", "Not specified");
-    }
+  }
+  if (boardLoaded) {
+    count.textContent = rows.length
+      ? rows.length + (rows.length === 1 ? " upcoming trip shown." : " upcoming trips shown.")
+      : "No trips match your search.";
   }
 }
-async function loadTrips(reset = false) {
+async function loadTrips() {
   const request = ++boardRequest;
-  if (reset) {
-    loadedTrips = [];
-    after = null;
-    render();
-  }
+  loadedTrips = [];
+  boardLoaded = false;
+  render();
   count.textContent = "Loading upcoming trips…";
-  moreTrips.hidden = true;
+  retryTrips.hidden = true;
   const url = new URL(endpoint, location.origin);
   url.search = search;
-  if (after) url.searchParams.set("after", after);
   try {
-    const response = await fetch(url, {signal: AbortSignal.timeout(12000)});
-    if (!response.ok) throw new Error("Trip board unavailable");
-    const result = await response.json();
-    if (request !== boardRequest) return;
-    loadedTrips.push(...result.trips);
-    after = result.after;
+    const results = [];
+    let after;
+    do {
+      if (after) url.searchParams.set("after", after);
+      const response = await fetch(url, {signal: AbortSignal.timeout(12000)});
+      if (!response.ok) throw new Error("Trip board unavailable");
+      const result = await response.json();
+      if (request !== boardRequest) return;
+      if (result.after && result.after === after) throw new Error("Trip board pagination did not advance");
+      results.push(...result.trips);
+      after = result.after;
+    } while (after);
+    loadedTrips = results;
+    boardLoaded = true;
     render();
-    count.textContent = loadedTrips.length
-      ? loadedTrips.length + (loadedTrips.length === 1 ? " upcoming trip shown." : " upcoming trips shown.")
-      : after ? "No matches on this page. Load more trips to continue." : "No upcoming trips found.";
-    moreTrips.textContent = "Load more trips";
-    moreTrips.hidden = !after;
   } catch {
     if (request !== boardRequest) return;
     count.textContent = "The trip board could not be loaded.";
-    moreTrips.textContent = "Retry";
-    moreTrips.hidden = false;
+    retryTrips.hidden = false;
   }
 }
 function openForm(selectedRole) {
@@ -154,6 +190,9 @@ function openForm(selectedRole) {
   document.querySelector("#formTitle").textContent = offering ? "Offer help on your trip" : "Request a travel companion";
   document.querySelector("#tripForLabel").hidden = offering;
   document.querySelector("#scopeLabel").hidden = !offering;
+  document.querySelector("#elderLabel").hidden = !offering;
+  document.querySelector("#paymentLabel").hidden = !offering;
+  document.querySelector("#travelerDetails").textContent = offering ? "How you can help" : "Languages and preferences";
   document.querySelector("#supportLegend").textContent = offering ? "What can you help with?" : "What would you like help with?";
   document.querySelector("#notesLabel").textContent = offering ? "Anything else the traveler should know? (optional)" : "Anything else your companion should know? (optional)";
   form.elements.help.placeholder = offering ? "e.g. I can meet you near the check-in counter" : "e.g. I’d like someone to walk with me to the connecting gate";
@@ -164,9 +203,11 @@ document.querySelector(".close").addEventListener("click", () => editor.close())
 filters.addEventListener("submit", event => {
   event.preventDefault();
   search = new URLSearchParams([...new FormData(filters)].filter(([, value]) => value));
-  loadTrips(true);
+  loadTrips();
 });
-moreTrips.addEventListener("click", () => loadTrips());
+retryTrips.addEventListener("click", loadTrips);
+tripSearch.addEventListener("input", render);
+tripSort.addEventListener("change", render);
 form.elements.publish.addEventListener("change", () => {
   form.elements.shareLanguage.disabled = !form.elements.publish.checked;
   if (!form.elements.publish.checked) form.elements.shareLanguage.checked = false;
@@ -174,10 +215,11 @@ form.elements.publish.addEventListener("change", () => {
 form.addEventListener("submit", async event => {
   event.preventDefault();
   const fields = new FormData(form);
-  const { from, to, name, email, date, language, flight, help, connection, flex, traveler, scope } = Object.fromEntries(fields);
+  const details = Object.fromEntries(fields);
+  const { from, to, name, email, date, language, flight, help, connection, flex, traveler, scope } = details;
   const support = fields.getAll("support");
   if (!name.trim() || !language.trim() || (!help.trim() && !support.length)) {
-    formStatus.textContent = "Enter a first name and language, then choose a type of help or add a short note.";
+    formStatus.textContent = "Enter a full name and language, then choose a type of help or add a short note.";
     return;
   }
   const trip = {
@@ -187,6 +229,14 @@ form.addEventListener("submit", async event => {
     from: from.toUpperCase(), to: to.toUpperCase(),
     name: name.trim(), language: language.trim(), flight: flight.trim().toUpperCase(), help: help.trim()
   };
+  for (const key of ["phoneAbroad", "phoneIndia", "direction", "airline", "fromCity", "toCity",
+    "departureTime", "connectingFlight1", "connectingFlight2"]) {
+    trip[key] = details[key].trim();
+  }
+  if (role === "offer") {
+    trip.elder = details.elder;
+    trip.payment = details.payment;
+  }
   if (location.protocol !== "https:") {
     formStatus.textContent = "Open the HTTPS website before submitting a registration.";
     return;
@@ -221,8 +271,9 @@ form.addEventListener("submit", async event => {
     if (trip.publish) {
       search = new URLSearchParams();
       filters.reset();
+      tripSearch.value = "";
       filters.querySelectorAll("input[list]").forEach(updateAirport);
-      loadTrips(true);
+      loadTrips();
     }
   } catch {
     formStatus.textContent = "Registration could not be confirmed. Please try again.";

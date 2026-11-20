@@ -221,3 +221,14 @@ legend { padding-inline: .25rem; font-weight: 800; }
   }
   .trip-cell-label { display: inline; color: var(--muted); font-size: .875rem; font-weight: 700; }
 }
+
+.table-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .8rem 1rem;
+  margin-top: 1rem;
+}
+.table-controls label:first-child { flex: 1 1 18rem; }
+.table-controls label:last-child { flex: 0 1 18rem; }
+.form-group { margin-top: 1.15rem; padding: .85rem 1rem; }
+.form-group .fields { margin: .35rem 0 .25rem; }
