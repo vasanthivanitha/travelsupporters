@@ -77,19 +77,78 @@ def validate(payload):
     }
 
 
+def list_trips(event):
+    params = event.get("queryStringParameters") or {}
+    today = datetime.now(timezone.utc).date().isoformat()
+    query = {
+        "TableName": os.environ["TABLE_NAME"],
+        "IndexName": "PublicTrips",
+        "KeyConditionExpression": "#listing = :public AND #date >= :today",
+        "ExpressionAttributeNames": {"#listing": "listing", "#date": "date"},
+        "ExpressionAttributeValues": {":public": {"S": "PUBLIC"}, ":today": {"S": today}},
+        "Limit": 50,
+    }
+    conditions = []
+    for key, pattern in (("from", r"[A-Z]{3}"), ("to", r"[A-Z]{3}"), ("role", r"request|offer")):
+        if value := params.get(key):
+            if not re.fullmatch(pattern, value):
+                return reply(400, message="Invalid trip board filter.")
+            query["ExpressionAttributeNames"]["#" + key] = key
+            query["ExpressionAttributeValues"][":" + key] = {"S": value}
+            conditions.append(f"#{key} = :{key}")
+    if support := params.get("support"):
+        if support not in SUPPORT_TYPES:
+            return reply(400, message="Invalid type of help.")
+        query["ExpressionAttributeNames"]["#support"] = "support"
+        query["ExpressionAttributeValues"][":support"] = {"S": support}
+        conditions.append("contains(#support, :support)")
+    if conditions:
+        query["FilterExpression"] = " AND ".join(conditions)
+    if cursor := params.get("after"):
+        try:
+            cursor_date, cursor_id = cursor.split("/", 1)
+            if date.fromisoformat(cursor_date).isoformat() != cursor_date or str(UUID(cursor_id)) != cursor_id:
+                raise ValueError
+        except ValueError:
+            return reply(400, message="Invalid trip board cursor.")
+        query["ExclusiveStartKey"] = {
+            "listing": {"S": "PUBLIC"}, "date": {"S": cursor_date}, "id": {"S": cursor_id}
+        }
+    try:
+        results = dynamodb.query(**query)
+    except ClientError:
+        return reply(503, message="The trip board is temporarily unavailable. Try again.")
+    trips = [
+        {
+            **{key: item[key]["S"] for key in ("role", "from", "to", "date")},
+            "support": [value["S"] for value in item.get("support", {}).get("L", [])],
+        }
+        for item in results.get("Items", [])
+    ]
+    last = results.get("LastEvaluatedKey")
+    return reply(200, trips=trips, after=last["date"]["S"] + "/" + last["id"]["S"] if last else None)
+
+
 def handler(event, context):
+    if event.get("requestContext", {}).get("http", {}).get("method") == "GET":
+        return list_trips(event)
     body = event.get("body") or ""
     if len(body) > 8192:
         return reply(413, message="Registration is too large.")
     if event.get("isBase64Encoded"):
         return reply(415, message="Send JSON.")
     try:
-        record = validate(json.loads(body))
+        payload = json.loads(body)
+        record = validate(payload)
+        publish = payload.get("publish", False)
+        if type(publish) is not bool:
+            raise ValueError("Check the trip board preference.")
     except ValueError as error:
         message = "Send valid JSON." if isinstance(error, json.JSONDecodeError) else str(error)
         return reply(400, message=message)
 
-    fingerprint = hashlib.sha256(json.dumps(record, sort_keys=True).encode()).hexdigest()
+    fingerprint_data = {**record, "publish": True} if publish else record
+    fingerprint = hashlib.sha256(json.dumps(fingerprint_data, sort_keys=True).encode()).hexdigest()
     item = {key: {"S": value} for key, value in record.items() if isinstance(value, str) and value}
     item.update(
         flex={"N": str(record["flex"])},
@@ -97,6 +156,8 @@ def handler(event, context):
         fingerprint={"S": fingerprint},
         createdAt={"S": datetime.now(timezone.utc).isoformat()},
     )
+    if publish:
+        item["listing"] = {"S": "PUBLIC"}
     try:
         dynamodb.put_item(
             TableName=os.environ["TABLE_NAME"], Item=item,

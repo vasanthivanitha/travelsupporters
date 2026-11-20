@@ -19,15 +19,15 @@
 </section>
 <section id="trips" class="board"><div class="wrap">
 <p class="eyebrow">TRIP BOARD</p><h2>Find someone on your route</h2>
-<p>Browse example trips to see how the trip board works. Registration submissions go to the site operator.</p>
+<p>Browse upcoming companion requests and supporter offers shared by travelers. Listings show the route, travel date, and type of help.</p>
 <form id="filters" class="filters">
-<label>Departure airport in India<select name="from"></select></label>
-<label>International arrival airport<select name="to"></select></label>
+<label>Departure airport in India<input name="from" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. DEL" list="filter-from-airports" aria-describedby="filter-from-name" autocomplete="off"><datalist id="filter-from-airports"></datalist><span id="filter-from-name" class="airport-name" aria-live="polite"></span></label>
+<label>International arrival airport<input name="to" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. LHR" list="filter-to-airports" aria-describedby="filter-to-name" autocomplete="off"><datalist id="filter-to-airports"></datalist><span id="filter-to-name" class="airport-name" aria-live="polite"></span></label>
 <label>Trip type<select name="role"><option value="">All trips</option><option value="request">Looking for help</option><option value="offer">Offering help</option></select></label>
 <label>Type of help<select name="support"><option value="">Any type of help</option></select></label>
 <button type="submit">Search trips</button>
 </form>
-<p id="registrationStatus" role="status" tabindex="-1" hidden></p><p id="count" role="status"></p><div id="cards" class="cards"></div>
+<p id="registrationStatus" role="status" tabindex="-1" hidden></p><p id="count" role="status"></p><div id="cards" class="cards"></div><button id="moreTrips" class="outline board-more" type="button" hidden>Load more trips</button>
 </div></section>
 <section id="how" class="wrap guide">
 <p class="eyebrow">HOW IT WORKS</p><h2>A little help goes a long way</h2>
@@ -36,7 +36,7 @@
 </main>
 <footer><div class="wrap"><a class="brand" href="#"><span aria-hidden="true">✈</span> Travel Supports</a><p>International travel from India</p></div></footer>
 <dialog id="editor"><form id="tripForm"><button type="button" class="close outline" aria-label="Close form">×</button><h2 id="formTitle"></h2><p>Use a first name only. Your email is stored with your registration for the site operator and stays off the trip board. Keep passport and booking details out of your notes.</p>
-<div class="fields"><label>First name<input name="name" required maxlength="40"></label><label>Contact email<input name="email" type="email" autocomplete="email" maxlength="254" required></label><label>Travel date<input name="date" type="date" required></label><label>Departure airport in India<select name="from" required></select></label><label>International arrival airport<select name="to" required></select></label><label>Language<input name="language" required maxlength="50" placeholder="e.g. Hindi"></label><label>Flight number (optional)<input name="flight" maxlength="15" placeholder="e.g. AI 101"></label>
+<div class="fields"><label>First name<input name="name" required maxlength="40"></label><label>Contact email<input name="email" type="email" autocomplete="email" maxlength="254" required></label><label>Travel date<input name="date" type="date" required></label><label>Departure airport in India<input name="from" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. DEL" list="trip-from-airports" aria-describedby="trip-from-name" autocomplete="off" required><datalist id="trip-from-airports"></datalist><span id="trip-from-name" class="airport-name" aria-live="polite"></span></label><label>International arrival airport<input name="to" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. LHR" list="trip-to-airports" aria-describedby="trip-to-name" autocomplete="off" required><datalist id="trip-to-airports"></datalist><span id="trip-to-name" class="airport-name" aria-live="polite"></span></label><label>Language<input name="language" required maxlength="50" placeholder="e.g. Hindi"></label><label>Flight number (optional)<input name="flight" maxlength="15" placeholder="e.g. AI 101"></label>
 <label>Connecting airport code (optional)<input name="connection" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. DOH"></label>
 <label>Date flexibility<select name="flex"><option value="0">Travel date is fixed</option><option value="1">Within 1 day</option><option value="3">Within 3 days</option></select></label>
 <label id="tripForLabel">Who needs a companion?<select name="traveler"><option value="">Choose if applicable</option><option value="Myself">Myself</option><option value="A family member or friend">A family member or friend</option></select></label>
@@ -44,5 +44,6 @@
 </div>
 <fieldset><legend id="supportLegend">Types of help</legend><div id="supportChoices" class="support-choices"></div></fieldset>
 <label><span id="notesLabel">Trip notes</span><textarea name="help" maxlength="240" rows="3" placeholder="e.g. Finding the gate and getting to baggage claim"></textarea></label>
+<label class="publish-choice"><input name="publish" type="checkbox"> List my trip on the public board. This shares only the airports, date, and types of help.</label>
 <p id="formStatus" role="status"></p><button type="submit">Submit registration</button></form></dialog>
 </body></html>

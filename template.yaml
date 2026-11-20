@@ -32,6 +32,20 @@ Resources:
       AttributeDefinitions:
         - AttributeName: id
           AttributeType: S
+        - AttributeName: listing
+          AttributeType: S
+        - AttributeName: date
+          AttributeType: S
+      GlobalSecondaryIndexes:
+        - IndexName: PublicTrips
+          KeySchema:
+            - AttributeName: listing
+              KeyType: HASH
+            - AttributeName: date
+              KeyType: RANGE
+          Projection:
+            ProjectionType: INCLUDE
+            NonKeyAttributes: [role, from, to, support]
       KeySchema:
         - AttributeName: id
           KeyType: HASH
@@ -45,7 +59,7 @@ Resources:
       CorsConfiguration:
         AllowOrigins: [https://travelsupporters.com]
         AllowHeaders: [content-type]
-        AllowMethods: [POST]
+        AllowMethods: [GET, POST]
         MaxAge: 600
       DefaultRouteSettings:
         ThrottlingBurstLimit: 20
@@ -65,6 +79,9 @@ Resources:
             - Effect: Allow
               Action: dynamodb:PutItem
               Resource: !GetAtt Registrations.Arn
+            - Effect: Allow
+              Action: dynamodb:Query
+              Resource: !Sub '${Registrations.Arn}/index/PublicTrips'
       Events:
         RegisterTrip:
           Type: HttpApi
@@ -72,6 +89,12 @@ Resources:
             ApiId: !Ref RegistrationApi
             Path: /api/registrations
             Method: POST
+        ListTrips:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref RegistrationApi
+            Path: /api/registrations
+            Method: GET
   WebsiteAccess:
     Type: AWS::CloudFront::OriginAccessControl
     Condition: CreateWebsite

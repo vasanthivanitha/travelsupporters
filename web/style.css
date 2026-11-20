@@ -16,3 +16,8 @@ legend{font-weight:700;padding:0 .25rem}
 .support-tags li{padding:.2rem .48rem;border-radius:5px;background:var(--wash);font-size:.875rem}
 @media(min-width:821px){.filters{grid-template-columns:repeat(4,minmax(0,1fr)) auto}}
 @media(max-width:450px){.support-choices{grid-template-columns:1fr}}
+.airport-name{font-size:.875rem;color:var(--muted);font-weight:500}
+.airport-name:empty{display:none}
+.publish-choice{flex-direction:row;align-items:flex-start;gap:.6rem;margin-top:1rem}
+.publish-choice input{width:1.15rem;height:1.15rem;min-height:0;flex:none;accent-color:var(--green)}
+.board-more{margin-top:1rem}

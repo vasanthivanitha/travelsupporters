@@ -47,6 +47,7 @@ sed -e "/<title>/i <meta name=\"registration-endpoint\" content=\"$endpoint\">" 
   -e "s/src=\"app.js\"/src=\"$app_file\"/" web/index.html > "$stage/index.html"
 
 aws s3 cp web/style.css "s3://$bucket/style.css" --region "$region"
+aws s3 cp web/airports.json "s3://$bucket/airports.json" --region "$region"
 aws s3 cp web/airport.webp "s3://$bucket/airport.webp" --region "$region"
 aws s3 cp web/app.js "s3://$bucket/$app_file" --content-type text/javascript --region "$region"
 aws s3 cp "$stage/index.html" "s3://$bucket/index.html" --content-type text/html \

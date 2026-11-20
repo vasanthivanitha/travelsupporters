@@ -1,15 +1,3 @@
-const airports = {
-  from: { DEL: "Delhi", BOM: "Mumbai", BLR: "Bengaluru", HYD: "Hyderabad", MAA: "Chennai", AMD: "Ahmedabad", COK: "Kochi", CCU: "Kolkata", GOI: "Goa", PNQ: "Pune" },
-  to: {
-    AMS: "Amsterdam, Netherlands", AKL: "Auckland, New Zealand", BKK: "Bangkok, Thailand",
-    CDG: "Paris, France", DOH: "Doha, Qatar", DXB: "Dubai, UAE",
-    FRA: "Frankfurt, Germany", HKG: "Hong Kong", JED: "Jeddah, Saudi Arabia",
-    JFK: "New York, USA", JNB: "Johannesburg, South Africa", KUL: "Kuala Lumpur, Malaysia",
-    LHR: "London, UK", MEL: "Melbourne, Australia", NRT: "Tokyo Narita, Japan",
-    SFO: "San Francisco, USA", SIN: "Singapore", SYD: "Sydney, Australia",
-    YVR: "Vancouver, Canada", YYZ: "Toronto, Canada"
-  }
-};
 const supportTypes = {
   checkin: "Check-in and departure gate",
   connection: "Getting through a connection",
@@ -31,16 +19,13 @@ let role;
 function localDate(date) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
-function futureDate(days) {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return localDate(date);
-}
-const examples = [
-  { role: "request", from: "DEL", to: "JFK", date: futureDate(18), name: "Meera", support: ["checkin", "baggage"], traveler: "A family member or friend", language: "Hindi or English", help: "Would like help finding the departure gate and baggage claim." },
-  { role: "offer", from: "BOM", to: "LHR", date: futureDate(24), name: "Anika", support: ["checkin", "language"], scope: "Departure airport only", language: "Marathi or English", help: "Happy to walk with you through the airport and help you find your gate." },
-  { role: "request", from: "BLR", to: "YYZ", date: futureDate(29), name: "Lakshmi", support: ["connection", "company"], language: "Kannada or English", help: "Looking for a companion to help navigate a connecting airport." }
-];
+const endpoint = document.querySelector('meta[name="registration-endpoint"]')?.content || "/api/registrations";
+const moreTrips = document.querySelector("#moreTrips");
+let airportData = {};
+let loadedTrips = [];
+let after = null;
+let search = new URLSearchParams();
+let boardRequest = 0;
 
 for (const [value, label] of Object.entries(supportTypes)) {
   filters.elements.support.add(new Option(label, value));
@@ -53,35 +38,41 @@ for (const [value, label] of Object.entries(supportTypes)) {
   document.querySelector("#supportChoices").append(choice);
 }
 
-for (const [direction, options] of Object.entries(airports)) {
-  for (const target of [filters, form]) {
-    const select = target.elements[direction];
-    select.add(new Option(target === filters ? "Any airport" : "Choose an airport", ""));
-    for (const [code, city] of Object.entries(options)) {
-      select.add(new Option(city + " (" + code + ")", code));
+const airportInputs = [...document.querySelectorAll("input[list]")];
+function updateAirport(input) {
+  input.value = input.value.toUpperCase();
+  const code = input.value;
+  const airport = airportData[code];
+  const hint = document.getElementById(input.getAttribute("aria-describedby"));
+  hint.textContent = code.length === 3
+    ? airport?.[0] || "Airport name unavailable. Check the code before continuing."
+    : "";
+  const suggestions = [];
+  if (/^[A-Z]{1,3}$/.test(code)) {
+    for (const [iata, [name, country]] of Object.entries(airportData)) {
+      if (!iata.startsWith(code) || (input.name === "from" ? country !== "IN" : country === "IN")) continue;
+      suggestions.push(new Option(name, iata));
+      if (suggestions.length === 20) break;
     }
-    if (target === form) select.add(new Option("Other airport (enter code)", "other"));
   }
+  input.list.replaceChildren(...suggestions);
 }
-
-for (const direction of ["from", "to"]) {
-  const select = form.elements[direction];
-  const custom = document.createElement("input");
-  custom.name = direction + "Custom";
-  custom.placeholder = "3-letter IATA code";
-  custom.pattern = "[A-Za-z]{3}";
-  custom.maxLength = 3;
-  custom.setAttribute("aria-label", direction === "from" ? "Departure airport code" : "Arrival airport code");
-  select.after(custom);
-  select.addEventListener("change", () => {
-    custom.hidden = select.value !== "other";
-    custom.required = !custom.hidden;
-  });
-  select.dispatchEvent(new Event("change"));
+for (const input of airportInputs) {
+  input.addEventListener("input", () => updateAirport(input));
 }
+fetch("airports.json").then(response => {
+  if (!response.ok) throw new Error("Airport directory unavailable");
+  return response.json();
+}).then(data => {
+  airportData = data;
+  airportInputs.forEach(updateAirport);
+  render();
+}).catch(() => {
+  airportInputs.forEach(updateAirport);
+});
 
-function airport(direction, code) {
-  return airports[direction][code] ? airports[direction][code] + " (" + code + ")" : code;
+function airport(code) {
+  return airportData[code] ? airportData[code][0] + " (" + code + ")" : code;
 }
 function append(parent, tag, value, className) {
   const element = document.createElement(tag);
@@ -91,33 +82,52 @@ function append(parent, tag, value, className) {
   return element;
 }
 function render() {
-  const selected = Object.fromEntries(new FormData(filters));
-  const shown = examples.filter(trip => {
-    if (selected.support && !trip.support?.includes(selected.support)) return false;
-    return ["from", "to", "role"].every(key => !selected[key] || selected[key] === trip[key]);
-  });
   cards.replaceChildren();
-  count.textContent = shown.length ? shown.length + (shown.length === 1 ? " example trip" : " example trips") :
-    "No example trips found. Try another filter.";
-  for (const trip of shown) {
+  for (const trip of loadedTrips) {
     const card = document.createElement("article");
     card.className = "card";
-    append(card, "span", (trip.role === "offer" ? "Offering help" : "Looking for help") + " · Example trip", "badge");
-    append(card, "h3", airport("from", trip.from) + " to " + airport("to", trip.to));
+    append(card, "span", trip.role === "offer" ? "Offering help" : "Looking for help", "badge");
+    append(card, "h3", airport(trip.from) + " to " + airport(trip.to));
     const date = new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(trip.date + "T12:00:00"));
-    append(card, "p", date + (trip.flight ? " · " + trip.flight : ""));
-    append(card, "p", trip.name + " · " + trip.language);
-    if (trip.flex) append(card, "p", "Date flexible by " + trip.flex + (trip.flex === 1 ? " day" : " days"));
-    if (trip.connection) append(card, "p", "Connection: " + trip.connection);
-    if (trip.traveler) append(card, "p", "Request for: " + trip.traveler);
-    if (trip.scope) append(card, "p", trip.scope);
-    const types = (trip.support || []).map(type => supportTypes[type]).filter(Boolean);
+    append(card, "p", date);
+    const types = trip.support.map(type => supportTypes[type]).filter(Boolean);
     if (types.length) {
       const list = append(card, "ul", "", "support-tags");
       for (const type of types) append(list, "li", type);
     }
-    if (trip.help) append(card, "p", trip.help);
     cards.append(card);
+  }
+}
+async function loadTrips(reset = false) {
+  const request = ++boardRequest;
+  if (reset) {
+    loadedTrips = [];
+    after = null;
+    render();
+  }
+  count.textContent = "Loading upcoming trips…";
+  moreTrips.hidden = true;
+  const url = new URL(endpoint, location.origin);
+  url.search = search;
+  if (after) url.searchParams.set("after", after);
+  try {
+    const response = await fetch(url, {signal: AbortSignal.timeout(12000)});
+    if (!response.ok) throw new Error("Trip board unavailable");
+    const result = await response.json();
+    if (request !== boardRequest) return;
+    loadedTrips.push(...result.trips);
+    after = result.after;
+    render();
+    count.textContent = loadedTrips.length
+      ? loadedTrips.length + (loadedTrips.length === 1 ? " upcoming trip shown." : " upcoming trips shown.")
+      : after ? "No matches on this page. Load more trips to continue." : "No upcoming trips found.";
+    moreTrips.textContent = "Load more trips";
+    moreTrips.hidden = !after;
+  } catch {
+    if (request !== boardRequest) return;
+    count.textContent = "The trip board could not be loaded.";
+    moreTrips.textContent = "Retry";
+    moreTrips.hidden = false;
   }
 }
 function openForm(selectedRole) {
@@ -125,7 +135,7 @@ function openForm(selectedRole) {
   form.reset();
   formStatus.textContent = "";
   form.elements.date.min = localDate(new Date());
-  for (const direction of ["from", "to"]) form.elements[direction].dispatchEvent(new Event("change"));
+  form.querySelectorAll("input[list]").forEach(updateAirport);
   const offering = role === "offer";
   document.querySelector("#formTitle").textContent = offering ? "Offer help on your trip" : "Request a travel companion";
   document.querySelector("#tripForLabel").hidden = offering;
@@ -139,23 +149,24 @@ document.querySelectorAll("[data-role]").forEach(button => button.addEventListen
 document.querySelector(".close").addEventListener("click", () => editor.close());
 filters.addEventListener("submit", event => {
   event.preventDefault();
-  render();
+  search = new URLSearchParams([...new FormData(filters)].filter(([, value]) => value));
+  loadTrips(true);
 });
+moreTrips.addEventListener("click", () => loadTrips());
 form.addEventListener("submit", async event => {
   event.preventDefault();
   const fields = new FormData(form);
-  const { from, to, fromCustom, toCustom, name, email, date, language, flight, help, connection, flex, traveler, scope } = Object.fromEntries(fields);
+  const { from, to, name, email, date, language, flight, help, connection, flex, traveler, scope } = Object.fromEntries(fields);
   const support = fields.getAll("support");
   if (!name.trim() || !language.trim() || (!help.trim() && !support.length)) {
     formStatus.textContent = "Enter a first name and language, then choose a type of help or add a short note.";
     return;
   }
   const trip = {
-    role, date, support, email: email.trim(),
+    role, date, support, email: email.trim(), publish: fields.has("publish"),
     connection: connection.toUpperCase(), flex: Number(flex),
     traveler: role === "request" ? traveler : "", scope: role === "offer" ? scope : "",
-    from: from === "other" ? fromCustom.toUpperCase() : from,
-    to: to === "other" ? toCustom.toUpperCase() : to,
+    from: from.toUpperCase(), to: to.toUpperCase(),
     name: name.trim(), language: language.trim(), flight: flight.trim().toUpperCase(), help: help.trim()
   };
   if (location.protocol !== "https:") {
@@ -173,7 +184,6 @@ form.addEventListener("submit", async event => {
   close.disabled = true;
   formStatus.textContent = "Submitting your registration…";
   try {
-    const endpoint = document.querySelector('meta[name="registration-endpoint"]')?.content || "/api/registrations";
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
@@ -190,6 +200,12 @@ form.addEventListener("submit", async event => {
     registrationStatus.hidden = false;
     registrationStatus.textContent = "Registration received. Save your reference number: " + result.id;
     registrationStatus.focus();
+    if (trip.publish) {
+      search = new URLSearchParams();
+      filters.reset();
+      filters.querySelectorAll("input[list]").forEach(updateAirport);
+      loadTrips(true);
+    }
   } catch {
     formStatus.textContent = "Registration could not be confirmed. Please try again.";
   } finally {
@@ -200,4 +216,4 @@ form.addEventListener("submit", async event => {
 editor.addEventListener("cancel", event => {
   if (form.querySelector('[type="submit"]').disabled) event.preventDefault();
 });
-render();
+loadTrips();
