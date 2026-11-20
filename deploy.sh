@@ -27,6 +27,15 @@ if [[ "$table" == None || -z "$table" || "$api" != https://* ]]; then
   exit 1
 fi
 
+admin_config="$(mktemp)"
+trap 'rm -f -- "$admin_config"' EXIT
+stack_output AdminConfig > "$admin_config"
+aws s3 cp "$admin_config" "s3://$bucket/admin-config.json" --content-type application/json --cache-control no-store --region "$region"
+for asset in admin.html admin.js style.css; do
+  aws s3 cp "web/$asset" "s3://$bucket/$asset" --region "$region"
+done
+printf 'Admin panel: https://travelsupporters.com/admin.html\nCognito user pool: %s\n' "$(stack_output AdminPoolId)"
+
 for ((attempt = 1; attempt <= 40; attempt++)); do
   index_status="$(aws dynamodb describe-table --table-name "$table" --region "$region" \
     --query "Table.GlobalSecondaryIndexes[?IndexName=='PublicTrips'].IndexStatus | [0]" --output text)"

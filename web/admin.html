@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Listing administration | Travel Supports</title>
+<link rel="stylesheet" href="style.css">
+<script defer src="admin.js"></script>
+</head>
+<body>
+<header><nav class="wrap"><a class="brand" href="/"><span aria-hidden="true">✈</span> Travel Supports</a><button id="signOut" class="outline" hidden>Sign out</button></nav></header>
+<main class="wrap guide">
+<h1>Listing administration</h1>
+<p>Review companion requests and supporter offers. Publish a trip only with the traveler’s permission.</p>
+<p id="adminStatus" role="status"></p>
+<button id="signIn" type="button" hidden>Sign in as administrator</button>
+<section id="review" aria-labelledby="reviewTitle" hidden>
+<h2 id="reviewTitle">Registrations</h2>
+<div id="adminCards" class="cards"></div>
+<button id="nextPage" class="outline board-more" type="button" hidden>Load more registrations</button>
+</section>
+</main>
+</body>
+</html>

@@ -58,9 +58,16 @@ Resources:
     Properties:
       CorsConfiguration:
         AllowOrigins: [https://travelsupporters.com]
-        AllowHeaders: [content-type]
-        AllowMethods: [GET, POST]
+        AllowHeaders: [authorization, content-type]
+        AllowMethods: [GET, POST, PATCH]
         MaxAge: 600
+      Auth:
+        Authorizers:
+          ListingAdmin:
+            IdentitySource: "$request.header.Authorization"
+            JwtConfiguration:
+              issuer: !Sub 'https://cognito-idp.${AWS::Region}.${AWS::URLSuffix}/${AdminPool}'
+              audience: [!Ref AdminClient]
       DefaultRouteSettings:
         ThrottlingBurstLimit: 20
         ThrottlingRateLimit: 5
@@ -95,6 +102,71 @@ Resources:
             ApiId: !Ref RegistrationApi
             Path: /api/registrations
             Method: GET
+  AdminPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      UsernameAttributes: [email]
+      UsernameConfiguration:
+        CaseSensitive: false
+  AdminClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref AdminPool
+      GenerateSecret: false
+      SupportedIdentityProviders: [COGNITO]
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid]
+      CallbackURLs: [https://travelsupporters.com/admin.html]
+      LogoutURLs: [https://travelsupporters.com/admin.html]
+      AccessTokenValidity: 15
+      TokenValidityUnits:
+        AccessToken: minutes
+      PreventUserExistenceErrors: ENABLED
+  AdminDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !If
+        - CreateWebsite
+        - !Sub '${AWS::StackName}-admin-${AWS::AccountId}-${AWS::Region}'
+        - !Sub '${AWS::StackName}-existing-admin-${AWS::AccountId}-${AWS::Region}'
+      UserPoolId: !Ref AdminPool
+  ManageListings:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: admin.handler
+      Runtime: python3.13
+      Timeout: 8
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref Registrations
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:Scan, dynamodb:UpdateItem]
+              Resource: !GetAtt Registrations.Arn
+      Events:
+        Review:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref RegistrationApi
+            Path: /api/admin/listings
+            Method: GET
+            Auth:
+              Authorizer: ListingAdmin
+              AuthorizationScopes: [openid]
+        ChangeListing:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref RegistrationApi
+            Path: /api/admin/listings
+            Method: PATCH
+            Auth:
+              Authorizer: ListingAdmin
+              AuthorizationScopes: [openid]
   WebsiteAccess:
     Type: AWS::CloudFront::OriginAccessControl
     Condition: CreateWebsite
@@ -160,3 +232,8 @@ Outputs:
     Value: !Sub 'https://${RegistrationApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/api/registrations'
   RegistrationsTableName:
     Value: !Ref Registrations
+  AdminPoolId:
+    Value: !Ref AdminPool
+  AdminConfig:
+    Value: !Sub >-
+      {"clientId":"${AdminClient}","loginOrigin":"https://${AdminDomain}.auth.${AWS::Region}.amazoncognito.com","api":"https://${RegistrationApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/api/admin/listings"}

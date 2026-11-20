@@ -39,3 +39,11 @@ Open the printed website URL and submit one companion request and one supporter 
 The trip board displays upcoming companion requests and supporter offers that opt into publication. The public API returns only airport codes, date, registration type, and selected help categories for each trip. Names, contact emails, notes, and flight numbers stay private for operator follow-up. New opt-in submissions appear automatically after DynamoDB indexes them.
 
 To publish a previously submitted trip with the traveler's permission, open **DynamoDB → Explore table items**, select the registration by its reference ID, and add the String attribute `listing` with value `PUBLIC`. Remove that attribute to unlist a trip. Earlier records stay private until this field is set. The `PublicTrips` index can take a few minutes to become active on the first deployment.
+
+## Manage listings in the admin panel
+
+Deploy the latest stack and open [Listing administration](https://travelsupporters.com/admin.html). The custom domain must serve the site over HTTPS for Cognito to return you to the panel.
+
+To invite your first administrator, open **Amazon Cognito → User pools** in the stack's AWS region, select the user pool ID printed by the deploy script, and open **Users → Create user**. Enter the administrator's email and send the invitation. Sign in with the temporary password and set a new password when prompted. Only invite trusted administrators. Self-registration is disabled, and every account in this dedicated pool can manage listings.
+
+The panel shows registration references, trip routes, dates, and visibility. Choose **Publish** with the traveler's permission or **Unlist** to return a trip to private visibility. The public board can take a moment to reflect changes. The admin-side status updates immediately after saving.

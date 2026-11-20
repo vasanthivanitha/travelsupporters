@@ -46,6 +46,11 @@ app_file="travel-registration-$revision.js"
 sed -e "/<title>/i <meta name=\"registration-endpoint\" content=\"$endpoint\">" \
   -e "s/src=\"app.js\"/src=\"$app_file\"/" web/index.html > "$stage/index.html"
 
+stack_output AdminConfig > "$stage/admin-config.json"
+aws s3 cp "$stage/admin-config.json" "s3://$bucket/admin-config.json" --content-type application/json --cache-control no-store --region "$region"
+aws s3 cp web/admin.html "s3://$bucket/admin.html" --region "$region"
+aws s3 cp web/admin.js "s3://$bucket/admin.js" --region "$region"
+printf 'Admin panel: https://travelsupporters.com/admin.html\nCognito user pool: %s\n' "$(stack_output AdminPoolId)"
 aws s3 cp web/style.css "s3://$bucket/style.css" --region "$region"
 aws s3 cp web/airports.json "s3://$bucket/airports.json" --region "$region"
 aws s3 cp web/airport.webp "s3://$bucket/airport.webp" --region "$region"
