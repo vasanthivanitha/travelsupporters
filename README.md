@@ -1,6 +1,6 @@
 # Travel Supporters
 
-The India–U.S. travel companion website lives in `web/`. Both registration forms submit to `POST /api/registrations`. API Gateway invokes a Python Lambda function that validates the form and writes either a companion request or a supporter offer to DynamoDB. The confirmation displays a reference ID. Retrying the same submission from the open page reuses that ID.
+The website in `web/` supports companion requests and supporter offers for international flights departing from India. Both forms accept any three-letter IATA destination code through **Other airport (enter code)**. Both registration forms submit to `POST /api/registrations`. API Gateway invokes a Python Lambda function that validates the form and writes either a companion request or a supporter offer to DynamoDB. The confirmation displays a reference ID. Retrying the same submission from the open page reuses that ID.
 
 ## Deploy to AWS
 

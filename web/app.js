@@ -1,6 +1,14 @@
 const airports = {
   from: { DEL: "Delhi", BOM: "Mumbai", BLR: "Bengaluru", HYD: "Hyderabad", MAA: "Chennai", AMD: "Ahmedabad", COK: "Kochi", CCU: "Kolkata", GOI: "Goa", PNQ: "Pune" },
-  to: { JFK: "New York", EWR: "Newark", SFO: "San Francisco", ORD: "Chicago", IAD: "Washington, DC", LAX: "Los Angeles", SEA: "Seattle", DFW: "Dallas", ATL: "Atlanta", BOS: "Boston", IAH: "Houston", MIA: "Miami" }
+  to: {
+    AMS: "Amsterdam, Netherlands", AKL: "Auckland, New Zealand", BKK: "Bangkok, Thailand",
+    CDG: "Paris, France", DOH: "Doha, Qatar", DXB: "Dubai, UAE",
+    FRA: "Frankfurt, Germany", HKG: "Hong Kong", JED: "Jeddah, Saudi Arabia",
+    JFK: "New York, USA", JNB: "Johannesburg, South Africa", KUL: "Kuala Lumpur, Malaysia",
+    LHR: "London, UK", MEL: "Melbourne, Australia", NRT: "Tokyo Narita, Japan",
+    SFO: "San Francisco, USA", SIN: "Singapore", SYD: "Sydney, Australia",
+    YVR: "Vancouver, Canada", YYZ: "Toronto, Canada"
+  }
 };
 const supportTypes = {
   checkin: "Check-in and departure gate",
@@ -30,8 +38,8 @@ function futureDate(days) {
 }
 const examples = [
   { role: "request", from: "DEL", to: "JFK", date: futureDate(18), name: "Meera", support: ["checkin", "baggage"], traveler: "A family member or friend", language: "Hindi or English", help: "Would like help finding the departure gate and baggage claim." },
-  { role: "offer", from: "BOM", to: "EWR", date: futureDate(24), name: "Anika", support: ["checkin", "language"], scope: "Departure airport only", language: "Marathi or English", help: "Happy to walk with you through the airport and help you find your gate." },
-  { role: "request", from: "BLR", to: "SFO", date: futureDate(29), name: "Lakshmi", support: ["connection", "company"], language: "Kannada or English", help: "Looking for a companion to help navigate a connecting airport." }
+  { role: "offer", from: "BOM", to: "LHR", date: futureDate(24), name: "Anika", support: ["checkin", "language"], scope: "Departure airport only", language: "Marathi or English", help: "Happy to walk with you through the airport and help you find your gate." },
+  { role: "request", from: "BLR", to: "YYZ", date: futureDate(29), name: "Lakshmi", support: ["connection", "company"], language: "Kannada or English", help: "Looking for a companion to help navigate a connecting airport." }
 ];
 
 for (const [value, label] of Object.entries(supportTypes)) {
@@ -52,7 +60,7 @@ for (const [direction, options] of Object.entries(airports)) {
     for (const [code, city] of Object.entries(options)) {
       select.add(new Option(city + " (" + code + ")", code));
     }
-    select.add(new Option("Other airport", "other"));
+    if (target === form) select.add(new Option("Other airport (enter code)", "other"));
   }
 }
 
@@ -60,7 +68,7 @@ for (const direction of ["from", "to"]) {
   const select = form.elements[direction];
   const custom = document.createElement("input");
   custom.name = direction + "Custom";
-  custom.placeholder = "Enter airport code";
+  custom.placeholder = "3-letter IATA code";
   custom.pattern = "[A-Za-z]{3}";
   custom.maxLength = 3;
   custom.setAttribute("aria-label", direction === "from" ? "Departure airport code" : "Arrival airport code");
@@ -86,8 +94,7 @@ function render() {
   const selected = Object.fromEntries(new FormData(filters));
   const shown = examples.filter(trip => {
     if (selected.support && !trip.support?.includes(selected.support)) return false;
-    return ["from", "to", "role"].every(key => !selected[key] || selected[key] === trip[key] ||
-      (selected[key] === "other" && !airports[key][trip[key]]));
+    return ["from", "to", "role"].every(key => !selected[key] || selected[key] === trip[key]);
   });
   cards.replaceChildren();
   count.textContent = shown.length ? shown.length + (shown.length === 1 ? " example trip" : " example trips") :
