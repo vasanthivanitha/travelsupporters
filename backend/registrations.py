@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import os
 import re
 from datetime import date, timedelta, datetime, timezone
@@ -9,6 +10,7 @@ import boto3
 from botocore.exceptions import ClientError
 
 dynamodb = boto3.client("dynamodb")
+logger = logging.getLogger(__name__)
 SUPPORT_TYPES = {"checkin", "connection", "language", "baggage", "arrival", "company"}
 SCOPES = {
     "", "Departure airport only", "A connecting airport only",
@@ -116,7 +118,12 @@ def list_trips(event):
         }
     try:
         results = dynamodb.query(**query)
-    except ClientError:
+    except ClientError as error:
+        logger.warning(
+            "PublicTrips query failed: code=%s aws_request_id=%s",
+            error.response.get("Error", {}).get("Code", "unknown"),
+            error.response.get("ResponseMetadata", {}).get("RequestId", "unknown"),
+        )
         return reply(503, message="The trip board is temporarily unavailable. Try again.")
     trips = [
         {
