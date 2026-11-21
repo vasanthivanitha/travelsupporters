@@ -164,7 +164,7 @@ Resources:
       Policies:
         - Statement:
             - Effect: Allow
-              Action: [dynamodb:Scan, dynamodb:UpdateItem]
+              Action: [dynamodb:GetItem, dynamodb:Scan, dynamodb:UpdateItem]
               Resource: !GetAtt Registrations.Arn
       Events:
         Review:

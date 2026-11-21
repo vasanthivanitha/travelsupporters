@@ -81,7 +81,7 @@ for (const input of airportInputs) {
 form.elements.direction.addEventListener("change", () => {
   form.querySelectorAll("input[list]").forEach(updateAirport);
 });
-fetch("airports.json").then(response => {
+const airportDirectory = fetch("airports.json").then(response => {
   if (!response.ok) throw new Error("Airport directory unavailable");
   return response.json();
 }).then(data => {
@@ -360,4 +360,23 @@ form.addEventListener("submit", async event => {
     cancelRegistration.disabled = false;
   }
 });
+const sharedOffer = new URLSearchParams(location.search);
+if (sharedOffer.get("offer") === "1") {
+  airportDirectory.then(() => {
+    if (!registration.hidden) return;
+    const button = registrationButtons.find(button => button.dataset.role === "offer");
+    openForm(button);
+    const from = sharedOffer.get("from") || "";
+    const to = sharedOffer.get("to") || "";
+    if (airportData[from]?.[1] !== "IN" && airportData[to]?.[1] === "IN") {
+      form.elements.direction.value = "inbound";
+    }
+    for (const [name, value] of [["from", from], ["to", to]]) {
+      if (/^[A-Z]{3}$/.test(value)) form.elements[name].value = value;
+      updateAirport(form.elements[name]);
+    }
+    const date = sharedOffer.get("date") || "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && date >= form.elements.date.min) form.elements.date.value = date;
+  });
+}
 loadTrips();

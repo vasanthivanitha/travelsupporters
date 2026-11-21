@@ -47,3 +47,10 @@ Deploy the latest stack and open the HTTPS admin URL printed by the script. The 
 To invite your first administrator, open **Amazon Cognito → User pools** in the stack's AWS region, select the user pool ID printed by the deploy script, and open **Users → Create user**. Enter the administrator's email and send the invitation. Sign in with the temporary password and set a new password when prompted. Only invite trusted administrators. Self-registration is disabled, and every account in this dedicated pool can manage listings.
 
 The panel shows registration references, trip routes, dates, and visibility. Choose **Publish** with the traveler's permission or **Unlist** to return a trip to private visibility. The public board can take a moment to reflect changes. The admin-side status updates immediately after saving.
+
+
+### Find supporters and share a request
+
+Choose **Find and share** on a companion request. The panel compares registrations on the same airport route, accounts for date flexibility, and prioritizes matching first flights. It shows differences in connecting flights when both travelers supplied them and highlights shared languages and help categories. Administrators can open an email draft for a matching supporter and should confirm the full itinerary before connecting travelers.
+
+Confirm the traveler's permission before copying or sharing the post. The starter draft uses the route, date, selected help categories, and a link that prefills the support form. Use the WhatsApp or Facebook action, or save your own Desi community website or group links and open them to post the draft. Saved community links stay in that browser. The AI prompt is copyable for use in a writing assistant. The app does not automatically publish posts or search social profiles for travelers.

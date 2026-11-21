@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <title>Listing administration | Travel Supports</title>
-<link rel="stylesheet" href="style.css">
-<script defer src="admin.js"></script>
+<link rel="stylesheet" href="style.css?v=7">
+<script defer src="admin.js?v=7"></script>
 </head>
 <body>
 <header><nav class="wrap"><a class="brand" href="/"><span aria-hidden="true">✈</span> Travel Supports</a><button id="signOut" class="outline" hidden>Sign out</button></nav></header>
@@ -15,6 +15,33 @@
 <p>Review companion requests and supporter offers. Publish a trip only with the traveler’s permission.</p>
 <p id="adminStatus" role="status"></p>
 <button id="signIn" type="button" hidden>Sign in as administrator</button>
+<section id="outreach" class="outreach card" aria-labelledby="outreachTitle" hidden>
+<h2 id="outreachTitle" tabindex="-1">Find a supporter</h2>
+<p id="outreachRoute"></p>
+<p id="matchStatus" role="status"></p>
+<ul id="matchResults" class="match-results"></ul>
+<section aria-labelledby="shareHeading">
+<h3 id="shareHeading">Share with your community</h3>
+<label>Community post<textarea id="shareDraft" rows="6"></textarea></label>
+<label class="publish-choice"><input type="checkbox" id="sharePermission"> I have permission to share this route and date.</label>
+<div class="actions outreach-actions">
+<button type="button" id="copyPost" disabled>Copy post</button>
+<button type="button" id="copyPrompt" class="outline" disabled>Copy AI drafting prompt</button>
+<a id="shareWhatsApp" target="_blank" rel="noopener noreferrer" hidden>Open WhatsApp</a>
+<a id="shareFacebook" target="_blank" rel="noopener noreferrer" hidden>Share link on Facebook</a>
+</div>
+<p id="shareStatus" role="status"></p>
+<h3>Community websites and social groups</h3>
+<p>Save links to groups you can post in. Open a group and paste the post when you’re ready to share.</p>
+<form id="communityForm" class="fields">
+<label>Group or website name<input name="groupName" required maxlength="80" placeholder="e.g. Desi Community London"></label>
+<label>Group or website URL<input name="groupUrl" type="url" required maxlength="500" placeholder="https://…"></label>
+<button type="submit" class="outline">Add community link</button>
+</form>
+<p id="communityStatus" role="status"></p>
+<ul id="communityLinks" class="community-links"></ul>
+</section>
+</section>
 <section id="review" aria-labelledby="reviewTitle" hidden>
 <h2 id="reviewTitle">Registrations</h2>
 <div id="adminCards" class="cards"></div>

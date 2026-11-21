@@ -313,3 +313,12 @@ legend { padding-inline: .25rem; font-weight: 800; }
   .registration-progress li { font-size: .8rem; }
   .registration-footer button[type="submit"] { flex: 1; }
 }
+
+.outreach { margin: 1.5rem 0; }
+.outreach-actions { align-items: center; margin-top: .8rem; }
+.outreach a { color: var(--purple-deep); text-decoration: underline; }
+.outreach a[aria-disabled] { color: var(--muted); text-decoration: none; }
+.match-results, .community-links { padding-left: 1.2rem; }
+.match-results li + li, .community-links li + li { margin-top: .7rem; }
+.community-links button { margin-left: .65rem; }
+#adminCards button { margin: .35rem .45rem .15rem 0; }

@@ -1,11 +1,13 @@
 import json
 import logging
 import os
+import re
+from datetime import date, timedelta
 from uuid import UUID
 
 from botocore.exceptions import ClientError
 
-from registrations import dynamodb, reply
+from registrations import SUPPORT_TYPES, dynamodb, reply
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +36,80 @@ def review(event, table):
     ]
     next_key = result.get("LastEvaluatedKey")
     return reply(200, registrations=items, after=next_key["id"]["S"] if next_key else None)
+
+
+def text(item, key):
+    return item.get(key, {}).get("S", "")
+
+
+def categories(item):
+    return {entry["S"] for entry in item.get("support", {}).get("L", [])} & SUPPORT_TYPES
+
+
+def normalized_flight(item, key):
+    return re.sub(r"[^A-Z0-9]", "", text(item, key).upper())
+
+
+def spoken_languages(item):
+    return {word.strip().casefold() for word in re.split(r"[,;/]|\band\b|\bor\b", text(item, "language")) if word.strip()}
+
+
+def flexibility(item):
+    return min(3, max(0, int(item.get("flex", {}).get("N", "0"))))
+
+
+def find_supporters(table, identifier):
+    fields = ("id", "role", "from", "to", "date", "flight", "connection", "connectingFlight1",
+              "connectingFlight2", "flex", "language", "support")
+    names = {f"#{key}": key for key in fields}
+    request = dynamodb.get_item(
+        TableName=table, Key={"id": {"S": registration_id(identifier)}},
+        ProjectionExpression=", ".join(names), ExpressionAttributeNames=names,
+    ).get("Item", {})
+    if text(request, "role") != "request":
+        return reply(404, message="Companion request not found.")
+    requested_date = date.fromisoformat(text(request, "date"))
+    window = timedelta(days=flexibility(request) + 3)
+    offer_names = {**names, "#email": "email"}
+    scan = {
+        "TableName": table,
+        "ProjectionExpression": ", ".join(offer_names),
+        "ExpressionAttributeNames": offer_names,
+        "FilterExpression": "#role = :offer AND #from = :from AND #to = :to AND #date BETWEEN :start AND :end",
+        "ExpressionAttributeValues": {
+            ":offer": {"S": "offer"}, ":from": request["from"], ":to": request["to"],
+            ":start": {"S": (requested_date - window).isoformat()},
+            ":end": {"S": (requested_date + window).isoformat()},
+        },
+    }
+    matches = []
+    while True:
+        page = dynamodb.scan(**scan)
+        for offer in page.get("Items", []):
+            days = abs((date.fromisoformat(text(offer, "date")) - requested_date).days)
+            if days > flexibility(request) + flexibility(offer):
+                continue
+            flight = normalized_flight(request, "flight")
+            same_flight = bool(flight and flight == normalized_flight(offer, "flight") and days == 0)
+            connections_differ = any(
+                text(request, key) and text(offer, key) and
+                normalized_flight(request, key) != normalized_flight(offer, key)
+                for key in ("connection", "connectingFlight1", "connectingFlight2")
+            )
+            help_in_common = sorted(categories(offer) & categories(request))
+            language_in_common = sorted(spoken_languages(offer) & spoken_languages(request))
+            match = {
+                "id": text(offer, "id"), "date": text(offer, "date"), "email": text(offer, "email"),
+                "sameFlight": same_flight, "connectionDiffers": connections_differ,
+                "helpInCommon": help_in_common, "languagesInCommon": language_in_common,
+            }
+            matches.append(((not same_flight, days, connections_differ, -len(help_in_common), -len(language_in_common)), match))
+        if not page.get("LastEvaluatedKey"):
+            break
+        scan["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+    matches.sort(key=lambda entry: entry[0])
+    return reply(200, matches=[entry[1] for entry in matches[:25]], total=len(matches),
+                 requestedHelp=sorted(categories(request)))
 
 
 def change_listing(event, table):
@@ -67,6 +143,8 @@ def handler(event, context):
     try:
         table = os.environ["TABLE_NAME"]
         if method == "GET":
+            if identifier := (event.get("queryStringParameters") or {}).get("match"):
+                return find_supporters(table, identifier)
             return review(event, table)
         if method == "PATCH":
             return change_listing(event, table)
