@@ -33,6 +33,7 @@ const endpoint = document.querySelector('meta[name="registration-endpoint"]')?.c
 const retryTrips = document.querySelector("#retryTrips");
 const tripSearch = document.querySelector("#tripSearch");
 const tripSort = document.querySelector("#tripSort");
+const activeFilterCount = document.querySelector("#activeFilterCount");
 const collator = new Intl.Collator("en", {sensitivity: "base"});
 let airportData = {};
 let loadedTrips = [];
@@ -189,6 +190,18 @@ function tripType(trip) {
 function travelDate(trip) {
   return dateFormat.format(new Date(trip.date + "T12:00:00"));
 }
+function routeEndpoint(parent, code) {
+  const location = append(parent, "span", "", "trip-airport");
+  append(location, "strong", code, "trip-airport-code");
+  if (airportData[code]) append(location, "span", airportData[code][0], "trip-airport-name");
+}
+
+function updateActiveFilters() {
+  const total = [...search.keys()].length;
+  activeFilterCount.hidden = total === 0;
+  activeFilterCount.textContent = total + " active";
+}
+
 function render() {
   const terms = tripSearch.value.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
   const rows = loadedTrips.filter(trip => {
@@ -220,13 +233,16 @@ function render() {
     row.setAttribute("role", "row");
     const date = append(tripCell(row, "Travel date"), "time", travelDate(trip));
     date.dateTime = trip.date;
-    append(tripCell(row, "From"), "span", airport(trip.from));
-    append(tripCell(row, "To"), "span", airport(trip.to));
-    append(tripCell(row, "Trip type"), "span", tripType(trip), "badge");
-    append(tripCell(row, "Languages spoken"), "span", trip.language || "Not shared");
+    const route = append(tripCell(row, "Route"), "span", "", "trip-route");
+    routeEndpoint(route, trip.from);
+    append(route, "span", "to", "trip-route-divider");
+    routeEndpoint(route, trip.to);
+    const badge = append(tripCell(row, "Trip type"), "span", tripType(trip), "badge trip-badge");
+    badge.dataset.role = trip.role;
+    append(tripCell(row, "Languages spoken"), "span", trip.language || "Not shared", trip.language ? "" : "trip-muted");
     const shareCell = tripCell(row, "Share");
     if (trip.role === "request") {
-      const share = append(shareCell, "button", "Share request", "outline");
+      const share = append(shareCell, "button", "Share request", "outline trip-share-button");
       share.type = "button";
       share.addEventListener("click", () => openPublicShare(trip, share));
     } else {
@@ -236,7 +252,7 @@ function render() {
   if (boardLoaded) {
     count.textContent = rows.length
       ? rows.length + (rows.length === 1 ? " upcoming trip shown." : " upcoming trips shown.")
-      : "No trips match your search.";
+      : (terms.length || search.size ? "No trips match your search. Try a different search or reset the filters." : "No upcoming trips are listed yet.");
   }
 }
 async function loadTrips() {
@@ -363,6 +379,15 @@ previousStep.addEventListener("click", () => showRegistrationStep(activeStep - 1
 filters.addEventListener("submit", event => {
   event.preventDefault();
   search = new URLSearchParams([...new FormData(filters)].filter(([, value]) => value));
+  updateActiveFilters();
+  loadTrips();
+});
+document.querySelector("#resetTripFilters").addEventListener("click", () => {
+  filters.reset();
+  filters.querySelectorAll("input[list]").forEach(updateAirport);
+  if (!search.size) return;
+  search = new URLSearchParams();
+  updateActiveFilters();
   loadTrips();
 });
 retryTrips.addEventListener("click", loadTrips);
@@ -439,6 +464,7 @@ form.addEventListener("submit", async event => {
     registrationStatus.focus();
     if (trip.publish) {
       search = new URLSearchParams();
+      updateActiveFilters();
       filters.reset();
       tripSearch.value = "";
       filters.querySelectorAll("input[list]").forEach(updateAirport);
