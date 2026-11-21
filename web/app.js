@@ -283,7 +283,9 @@ function render() {
     const dateBlock = append(tripCell(row, "Travel date"), "div", "", "trip-date-block");
     const date = append(dateBlock, "time", travelDate(trip));
     date.dateTime = trip.date;
-    if (trip.urgent) append(date.parentElement, "span", "Urgent · needs supporter", "trip-urgent");
+    if (trip.urgent) {
+      append(dateBlock, "span", "Urgent", "trip-urgent").setAttribute("aria-label", "Urgent: still needs a supporter");
+    }
     const route = append(tripCell(row, "Route"), "span", "", "trip-route");
     routeEndpoint(route, trip.from);
     append(route, "span", "to", "trip-route-divider");
@@ -294,20 +296,25 @@ function render() {
     const actionCell = tripCell(row, "Actions");
     const actions = append(actionCell, "div", "", "trip-row-actions");
     if (trip.reference && trip.seekingSupport) {
-      const offer = append(actions, "button", "Offer help for this trip", "trip-share-button");
+      const offer = append(actions, "button", "Offer help", "trip-offer-button");
+      offer.setAttribute("aria-label", "Offer help for this trip");
       offer.type = "button";
       offer.addEventListener("click", () => startTripOffer(trip, offer));
     }
+    const secondary = append(actions, "div", "", "trip-secondary-actions");
     if (trip.role === "request") {
-      const share = append(actions, "button", "Share request", "outline trip-share-button");
+      const share = append(secondary, "button", "Share", "trip-text-button");
+      share.setAttribute("aria-label", "Share request");
       share.type = "button";
       share.addEventListener("click", () => openPublicShare(trip, share));
     }
     if (trip.reference) {
-      const report = append(actions, "button", "Report listing", "outline trip-share-button");
+      const report = append(secondary, "button", "Report", "trip-text-button");
+      report.setAttribute("aria-label", "Report listing");
       report.type = "button";
       report.addEventListener("click", () => openReport(trip, report));
     }
+    secondary.hidden = !secondary.childElementCount;
   }
   if (boardLoaded) {
     count.textContent = rows.length

@@ -7,8 +7,8 @@
 <meta name="description" content="Find a companion or help a fellow traveler on an international flight to or from India.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="style.css?v=11">
-<script defer src="app.js?v=11"></script>
+<link rel="stylesheet" href="style.css?v=12">
+<script defer src="app.js?v=12"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -123,11 +123,14 @@
 <a href="alerts.html">Get route alerts</a>
 </div><div id="tripResults" class="trip-results" hidden>
 <table class="trip-table" role="table" aria-label="Upcoming trips">
+<colgroup>
+<col class="trip-date-column"><col><col class="trip-type-column"><col class="trip-language-column"><col class="trip-actions-column">
+</colgroup>
 <thead role="rowgroup"><tr role="row">
 <th role="columnheader" scope="col">Travel date</th>
 <th role="columnheader" scope="col">Route</th>
 <th role="columnheader" scope="col">Trip type</th>
-<th role="columnheader" scope="col">Languages spoken</th>
+<th role="columnheader" scope="col" aria-label="Languages spoken">Languages</th>
 <th role="columnheader" scope="col">Actions</th>
 </tr></thead>
 <tbody id="tripRows" role="rowgroup"></tbody>
