@@ -7,8 +7,8 @@
 <meta name="description" content="Find a companion or help a fellow traveler on an international flight to or from India.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="style.css?v=8">
-<script defer src="app.js?v=8"></script>
+<link rel="stylesheet" href="style.css?v=9">
+<script defer src="app.js?v=9"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -117,10 +117,23 @@
 <th role="columnheader" scope="col">To</th>
 <th role="columnheader" scope="col">Trip type</th>
 <th role="columnheader" scope="col">Languages spoken</th>
+<th role="columnheader" scope="col">Share</th>
 </tr></thead>
 <tbody id="tripRows" role="rowgroup"></tbody>
 </table>
-</div><button id="retryTrips" class="outline board-more" type="button" hidden>Retry</button>
+</div><section id="publicShare" class="outreach card" aria-labelledby="publicShareTitle" hidden>
+<h3 id="publicShareTitle" tabindex="-1">Share this request</h3>
+<label>Community destination<select id="publicDestination"><option value="facebook">Choose a group in Facebook</option></select></label>
+<p id="publicShareHint"></p>
+<label>Post draft<textarea id="publicDraft" rows="5"></textarea></label>
+<div class="actions outreach-actions">
+<button type="button" id="copyPublicPost">Copy post</button>
+<a id="openPublicDestination" target="_blank" rel="noopener noreferrer">Open Facebook share</a>
+<button type="button" id="closePublicShare" class="outline">Close</button>
+</div>
+<p id="publicShareStatus" role="status"></p>
+</section>
+<button id="retryTrips" class="outline board-more" type="button" hidden>Retry</button>
 </div></section>
 <section id="how" class="wrap guide">
 <p class="eyebrow">HOW IT WORKS</p><h2>A little help goes a long way</h2>

@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <title>Listing administration | Travel Supports</title>
-<link rel="stylesheet" href="style.css?v=8">
-<script defer src="admin.js?v=8"></script>
+<link rel="stylesheet" href="style.css?v=9">
+<script defer src="admin.js?v=9"></script>
 </head>
 <body>
 <header><nav class="wrap"><a class="brand" href="/"><span aria-hidden="true">✈</span> Travel Supports</a><button id="signOut" class="outline" hidden>Sign out</button></nav></header>
@@ -50,6 +50,18 @@
 <h2 id="reviewTitle">Registrations</h2>
 <div id="adminCards" class="cards"></div>
 <button id="nextPage" class="outline board-more" type="button" hidden>Load more registrations</button>
+<section class="outreach card" aria-labelledby="directoryTitle">
+<h3 id="directoryTitle">Public community directory</h3>
+<p>Add Facebook groups and community posting pages that visitors can choose from the public trip board.</p>
+<form id="directoryForm" class="fields">
+<label>Group name<input name="name" maxlength="80" required></label>
+<label>Destination type<select name="kind"><option value="facebook">Facebook group</option><option value="website">Community website</option></select></label>
+<label>Group link or posting page<input name="url" type="url" maxlength="500" placeholder="https://…" required></label>
+<div><button type="submit">Add public destination</button></div>
+</form>
+<p id="directoryStatus" role="status"></p>
+<ul id="directoryList" class="community-links"></ul>
+</section>
 </section>
 </main>
 </body>

@@ -108,6 +108,81 @@ function tripCell(row, label) {
   append(cell, "span", label, "trip-cell-label").setAttribute("aria-hidden", "true");
   return cell;
 }
+const publicShare = document.querySelector("#publicShare");
+const shareDestination = document.querySelector("#publicDestination");
+const shareDraft = document.querySelector("#publicDraft");
+const shareLink = document.querySelector("#openPublicDestination");
+const publicShareHint = document.querySelector("#publicShareHint");
+const publicShareStatus = document.querySelector("#publicShareStatus");
+let shareOfferUrl;
+let shareTrigger;
+let communityDestinations = [];
+let communityLoad;
+
+function updateShareDestination() {
+  const group = communityDestinations.find(item => item.id === shareDestination.value);
+  if (group) {
+    shareLink.href = group.url;
+    shareLink.textContent = group.kind === "facebook" ? "Open Facebook group" : "Open community website";
+    publicShareHint.textContent = "Copy the post, then open " + group.name + " and paste it into its posting form.";
+    return;
+  }
+  shareLink.href = "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(shareOfferUrl);
+  shareLink.textContent = "Open Facebook share";
+  publicShareHint.textContent = "Facebook opens a composer with the trip link. Choose the group in Facebook and publish when ready.";
+}
+
+async function loadDestinations() {
+  const url = new URL("/api/communities", new URL(endpoint, location.origin));
+  const response = await fetch(url, {signal: AbortSignal.timeout(10000)});
+  if (!response.ok) throw new Error("The community directory could not be loaded.");
+  const result = await response.json();
+  communityDestinations = result.communities.filter(group => {
+    try { return new URL(group.url).protocol === "https:"; } catch { return false; }
+  });
+  for (const group of communityDestinations) {
+    const type = group.kind === "facebook" ? "Facebook" : "Website";
+    shareDestination.add(new Option(group.name + " · " + type, group.id));
+  }
+}
+
+function openPublicShare(trip, trigger) {
+  shareTrigger = trigger;
+  const offer = new URL("/", location.origin);
+  offer.search = new URLSearchParams({offer: "1", from: trip.from, to: trip.to, date: trip.date});
+  shareOfferUrl = offer.href;
+  shareDraft.value = "Travel companion wanted | " + airport(trip.from) + " to " + airport(trip.to) +
+    " | " + travelDate(trip) + "\n\nAlready flying this route? Offer support through Travel Supports:\n" + shareOfferUrl;
+  shareDestination.value = "facebook";
+  publicShareStatus.textContent = "";
+  publicShare.hidden = false;
+  updateShareDestination();
+  document.querySelector("#publicShareTitle").focus();
+  if (!communityLoad) {
+    communityLoad = loadDestinations().catch(() => {
+      communityLoad = null;
+      publicShareStatus.textContent = "Saved community destinations are temporarily unavailable. Facebook sharing is still available.";
+    });
+  }
+}
+
+shareDestination.addEventListener("change", updateShareDestination);
+document.querySelector("#copyPublicPost").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(shareDraft.value);
+    publicShareStatus.textContent = "Post copied.";
+  } catch {
+    shareDraft.focus();
+    shareDraft.select();
+    publicShareStatus.textContent = "Copy the selected post to share it.";
+  }
+});
+document.querySelector("#closePublicShare").addEventListener("click", () => {
+  publicShare.hidden = true;
+  if (shareTrigger?.isConnected) shareTrigger.focus();
+  else tripSearch.focus();
+});
+
 function tripType(trip) {
   return trip.role === "offer" ? "Supporter offer" : "Companion request";
 }
@@ -149,6 +224,14 @@ function render() {
     append(tripCell(row, "To"), "span", airport(trip.to));
     append(tripCell(row, "Trip type"), "span", tripType(trip), "badge");
     append(tripCell(row, "Languages spoken"), "span", trip.language || "Not shared");
+    const shareCell = tripCell(row, "Share");
+    if (trip.role === "request") {
+      const share = append(shareCell, "button", "Share request", "outline");
+      share.type = "button";
+      share.addEventListener("click", () => openPublicShare(trip, share));
+    } else {
+      append(shareCell, "span", "—");
+    }
   }
   if (boardLoaded) {
     count.textContent = rows.length

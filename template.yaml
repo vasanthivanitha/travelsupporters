@@ -238,6 +238,49 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: rate(1 hour)
+  CommunityDirectory:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+  ManageCommunities:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: communities.handler
+      Runtime: python3.13
+      Timeout: 8
+      Environment:
+        Variables:
+          COMMUNITIES_TABLE: !Ref CommunityDirectory
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:Scan, dynamodb:PutItem, dynamodb:DeleteItem]
+              Resource: !GetAtt CommunityDirectory.Arn
+      Events:
+        ListCommunities:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref RegistrationApi
+            Path: /api/communities
+            Method: GET
+        EditCommunities:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref RegistrationApi
+            Path: /api/admin/communities
+            Method: POST
+            Auth:
+              Authorizer: ListingAdmin
+              AuthorizationScopes: [openid]
   WebsiteAccess:
     Type: AWS::CloudFront::OriginAccessControl
     Condition: CreateWebsite

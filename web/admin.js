@@ -118,7 +118,10 @@ async function adminRequest(url, options = {}) {
     showSignedOut("Your administrator session ended. Sign in again.");
     return null;
   }
-  if (!response.ok) throw new Error("The admin API could not complete this action. Try again.");
+  if (!response.ok) {
+    const result = await response.json().catch(() => ({}));
+    throw new Error(result.message || "The admin API could not complete this action. Try again.");
+  }
   return response.json();
 }
 
@@ -129,6 +132,65 @@ function add(parent, tag, text, className) {
   parent.append(element);
   return element;
 }
+
+const directoryForm = document.querySelector("#directoryForm");
+const directoryStatus = document.querySelector("#directoryStatus");
+const directoryList = document.querySelector("#directoryList");
+
+function directoryUrl(write = false) {
+  const url = new URL(adminEndpoint, location.origin);
+  url.pathname = write ? "/api/admin/communities" : "/api/communities";
+  return url;
+}
+
+async function changeDirectory(data) {
+  const result = await adminRequest(directoryUrl(true), {method: "POST", body: JSON.stringify(data)});
+  if (result) await loadDirectory();
+  return result;
+}
+
+async function loadDirectory() {
+  directoryStatus.textContent = "Loading public destinations…";
+  try {
+    const response = await fetch(directoryUrl());
+    if (!response.ok) throw new Error("The public community directory could not be loaded.");
+    const result = await response.json();
+    if (!adminEndpoint || !accessToken) return;
+    directoryList.replaceChildren();
+    for (const group of result.communities) {
+      const row = add(directoryList, "li", "");
+      const link = add(row, "a", group.name);
+      link.href = group.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      add(row, "span", group.kind === "facebook" ? " · Facebook group" : " · Community website");
+      coordinationButton(row, "Remove", async () => {
+        try {
+          await changeDirectory({action: "remove", id: group.id});
+        } catch (error) {
+          directoryStatus.textContent = error.message;
+        }
+      });
+    }
+    directoryStatus.textContent = result.communities.length ? "" : "No public destinations added yet.";
+  } catch (error) {
+    directoryStatus.textContent = error.message;
+  }
+}
+
+directoryForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const button = directoryForm.querySelector("button");
+  const fields = Object.fromEntries(new FormData(directoryForm));
+  button.disabled = true;
+  try {
+    if (await changeDirectory({action: "add", ...fields})) directoryForm.reset();
+  } catch (error) {
+    directoryStatus.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
 
 function safeCommunityUrl(value) {
   try {
@@ -488,7 +550,7 @@ async function initialize() {
   await finishLogin(new URLSearchParams(location.search));
   signOut.hidden = false;
   review.hidden = false;
-  await loadPage();
+  await Promise.all([loadPage(), loadDirectory()]);
 }
 
 initialize().catch(error => showSignedOut(error.message));

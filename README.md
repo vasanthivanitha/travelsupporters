@@ -74,3 +74,9 @@ EMAIL_SENDER=verified-sender@example.com MATCH_ALERT_EMAIL=admin@example.com \
 ```
 
 The hourly job emails the admin a digest when it finds newly matched offers, and reminds both people to reconfirm within two days of departure for confirmed primary matches. Private invitations and replacement management links send immediately when email is enabled. If SES cannot send an invitation, the admin panel offers private links and email drafts to send manually.
+
+### Share a public request with a community
+
+In the admin panel, use **Public community directory** to add a direct Facebook group URL or a community website's posting page. These destinations are visible to all visitors. The private, browser-saved community links in **Find and share** are separate.
+
+On the public trip board, choose **Share request** and select a destination. The general Facebook option opens Facebook's share composer with the supporter link. Facebook controls which groups are available to the signed-in user. For a specific Facebook group or community website, copy the draft, open the selected destination, and paste it into the posting form. The site does not publish to third-party groups or community websites without the visitor completing their posting flow.
