@@ -19,7 +19,7 @@ def registration_id(value):
 
 
 def review(event, table):
-    names = {f"#{key}": key for key in ("id", "role", "from", "to", "date", "listing")}
+    names = {f"#{key}": key for key in ("id", "role", "from", "to", "date", "listing", "withdrawn")}
     query = {
         "TableName": table, "Limit": 50, "ConsistentRead": True,
         "ProjectionExpression": ", ".join(names), "ExpressionAttributeNames": names,
@@ -31,6 +31,7 @@ def review(event, table):
         {
             **{key: record.get(key, {}).get("S", "") for key in ("id", "role", "from", "to", "date")},
             "published": record.get("listing", {}).get("S") == "PUBLIC",
+            "withdrawn": record.get("withdrawn", {}).get("BOOL", False),
         }
         for record in result.get("Items", [])
     ]
@@ -70,12 +71,12 @@ def find_supporters(table, identifier):
         return reply(404, message="Companion request not found.")
     requested_date = date.fromisoformat(text(request, "date"))
     window = timedelta(days=flexibility(request) + 3)
-    offer_names = {**names, "#email": "email"}
+    offer_names = {**names, "#email": "email", "#withdrawn": "withdrawn"}
     scan = {
         "TableName": table,
         "ProjectionExpression": ", ".join(offer_names),
         "ExpressionAttributeNames": offer_names,
-        "FilterExpression": "#role = :offer AND #from = :from AND #to = :to AND #date BETWEEN :start AND :end",
+        "FilterExpression": "#role = :offer AND #from = :from AND #to = :to AND #date BETWEEN :start AND :end AND attribute_not_exists(#withdrawn)",
         "ExpressionAttributeValues": {
             ":offer": {"S": "offer"}, ":from": request["from"], ":to": request["to"],
             ":start": {"S": (requested_date - window).isoformat()},
@@ -124,8 +125,8 @@ def change_listing(event, table):
     update = {
         "TableName": table,
         "Key": {"id": {"S": identifier}},
-        "ConditionExpression": "attribute_exists(#id)",
-        "ExpressionAttributeNames": {"#id": "id", "#listing": "listing"},
+        "ConditionExpression": "attribute_exists(#id) AND attribute_not_exists(#withdrawn)",
+        "ExpressionAttributeNames": {"#id": "id", "#listing": "listing", "#withdrawn": "withdrawn"},
         "UpdateExpression": "SET #listing = :public" if published else "REMOVE #listing",
     }
     if published:

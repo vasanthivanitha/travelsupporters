@@ -322,3 +322,8 @@ legend { padding-inline: .25rem; font-weight: 800; }
 .match-results li + li, .community-links li + li { margin-top: .7rem; }
 .community-links button { margin-left: .65rem; }
 #adminCards button { margin: .35rem .45rem .15rem 0; }
+
+#invitationLinks li, #adminCards li, .match-results .outline { margin-block: .4rem; }
+#invitationLinks a, #adminCards li a { margin-inline: .5rem; }
+#meetingForm { margin-top: 1rem; }
+#registrationStatus a { text-decoration: underline; font-weight: 700; }

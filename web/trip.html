@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Manage your trip | Travel Supports</title>
+<link rel="stylesheet" href="style.css?v=8">
+<script defer src="trip.js"></script>
+</head>
+<body>
+<header><nav class="wrap"><a class="brand" href="/">Travel Supports</a></nav></header>
+<main class="wrap guide">
+<h1 id="tripTitle">Your private trip</h1>
+<p id="tripMessage" role="status">Opening your private link…</p>
+<section id="tripDetails" class="card" hidden>
+<h2 id="tripRoute"></h2>
+<p id="tripState"></p>
+<div id="invitation" hidden>
+<p>Accepting a primary match allows the other person to see your email address once both of you accept. Backup matches share contact details only after promotion.</p>
+<div class="actions">
+<button type="button" data-action="accept">Accept</button>
+<button type="button" class="outline" data-action="decline">Decline</button>
+</div>
+<p id="matchedContact"></p>
+<form id="meetingForm" hidden>
+<label>Public meeting point (optional)<input name="meeting" maxlength="180" placeholder="e.g. Near the terminal information desk"></label>
+<p id="reconfirmState"></p>
+<button type="submit">Reconfirm trip</button>
+</form>
+</div>
+<form id="manageTrip" hidden>
+<div class="fields">
+<label>Departure date<input name="date" type="date" required></label>
+<label>First flight number<input name="flight" maxlength="15" placeholder="e.g. AI 101"></label>
+</div>
+<div class="actions">
+<button type="submit">Save changes</button>
+<button type="button" data-action="withdraw" class="outline">Withdraw trip</button>
+</div>
+</form>
+</section>
+</main>
+</body>
+</html>

@@ -11,18 +11,26 @@ stack_output() {
 }
 
 deploy_stack() {
+  local -a overrides=("$@")
+  if [[ -n "${EMAIL_SENDER:-}" ]]; then overrides+=("EmailSender=$EMAIL_SENDER"); fi
+  if [[ -n "${MATCH_ALERT_EMAIL:-}" ]]; then overrides+=("MatchAlertEmail=$MATCH_ALERT_EMAIL"); fi
+  if (( ${#overrides[@]} )); then
+    set -- --parameter-overrides "${overrides[@]}"
+  else
+    set --
+  fi
   sam deploy --template-file template.yaml --stack-name "$stack" --region "$region" \
     --resolve-s3 --capabilities CAPABILITY_IAM --no-fail-on-empty-changeset "$@"
 }
 
 sam validate --region "$region"
 if existing_website="$(stack_output WebsiteUrl 2>/dev/null)" && [[ "$existing_website" == https://*.cloudfront.net ]]; then
-  deploy_stack --parameter-overrides "AdminCloudFrontOrigin=$existing_website"
+  deploy_stack "AdminCloudFrontOrigin=$existing_website"
 else
   deploy_stack
   new_website="$(stack_output WebsiteUrl)"
   if [[ "$new_website" == https://*.cloudfront.net ]]; then
-    deploy_stack --parameter-overrides "AdminCloudFrontOrigin=$new_website"
+    deploy_stack "AdminCloudFrontOrigin=$new_website"
   fi
 fi
 
@@ -47,7 +55,7 @@ aws s3 sync web/ "s3://$bucket/" --region "$region"
 printf 'Website: %s\nAdmin panel: %s/admin.html\nCognito user pool: %s\nDynamoDB table: %s\n' \
   "$website" "$website" "$(stack_output AdminPoolId)" "$table"
 
-for page in "/" "/admin.html"; do
+for page in "/" "/admin.html" "/trip.html"; do
   if ! curl --fail --silent --show-error --retry 3 --retry-delay 5 --max-time 15 "$website$page" >/dev/null; then
     printf 'CloudFront did not serve %s. Check the distribution origin and S3 bucket policy.\n' "$website$page" >&2
     exit 1

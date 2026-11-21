@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <title>Listing administration | Travel Supports</title>
-<link rel="stylesheet" href="style.css?v=7">
-<script defer src="admin.js?v=7"></script>
+<link rel="stylesheet" href="style.css?v=8">
+<script defer src="admin.js?v=8"></script>
 </head>
 <body>
 <header><nav class="wrap"><a class="brand" href="/"><span aria-hidden="true">✈</span> Travel Supports</a><button id="signOut" class="outline" hidden>Sign out</button></nav></header>
@@ -19,9 +19,13 @@
 <h2 id="outreachTitle" tabindex="-1">Find a supporter</h2>
 <p id="outreachRoute"></p>
 <p id="matchStatus" role="status"></p>
+<p id="coordinationStatus" role="status"></p>
+<div id="coordinationActions" class="actions"></div>
+<ul id="invitationLinks"></ul>
 <ul id="matchResults" class="match-results"></ul>
 <section aria-labelledby="shareHeading">
 <h3 id="shareHeading">Share with your community</h3>
+<label>Draft language<select id="draftLanguage"><option value="en">English</option><option value="hi">Hindi</option><option value="te">Telugu</option><option value="ta">Tamil</option></select></label>
 <label>Community post<textarea id="shareDraft" rows="6"></textarea></label>
 <label class="publish-choice"><input type="checkbox" id="sharePermission"> I have permission to share this route and date.</label>
 <div class="actions outreach-actions">

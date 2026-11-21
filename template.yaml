@@ -12,6 +12,14 @@ Parameters:
     Default: ''
     AllowedPattern: '^$|^https://[a-z0-9]+[.]cloudfront[.]net$'
     Description: HTTPS origin of the existing CloudFront distribution for administrator sign-in.
+  EmailSender:
+    Type: String
+    Default: ''
+    Description: Verified Amazon SES sender address in this region. Leave empty for manual invitations.
+  MatchAlertEmail:
+    Type: String
+    Default: ''
+    Description: Administrator email for new-match alerts.
 Conditions:
   HasAdminCloudFrontOrigin: !Not [!Equals [!Ref AdminCloudFrontOrigin, '']]
   CreateWebsite: !Equals [!Ref ExistingWebsiteOrigin, '']
@@ -185,6 +193,51 @@ Resources:
             Auth:
               Authorizer: ListingAdmin
               AuthorizationScopes: [openid]
+  TripCoordination:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: coordination.handler
+      Runtime: python3.13
+      Timeout: 60
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref Registrations
+          CLOUDFRONT_ORIGIN: !Ref AdminCloudFrontOrigin
+          SITE_ORIGIN: !If [HasAdminCloudFrontOrigin, !Ref AdminCloudFrontOrigin, 'https://travelsupporters.com']
+          EMAIL_SENDER: !Ref EmailSender
+          ALERT_EMAIL: !Ref MatchAlertEmail
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:Scan, dynamodb:UpdateItem]
+              Resource: !GetAtt Registrations.Arn
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: '*'
+              Condition:
+                StringEquals:
+                  ses:FromAddress: !Ref EmailSender
+      Events:
+        PrivateTrip:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref RegistrationApi
+            Path: /api/trip
+            Method: POST
+        ManageMatches:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref RegistrationApi
+            Path: /api/admin/coordination
+            Method: POST
+            Auth:
+              Authorizer: ListingAdmin
+              AuthorizationScopes: [openid]
+        Notifications:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
   WebsiteAccess:
     Type: AWS::CloudFront::OriginAccessControl
     Condition: CreateWebsite

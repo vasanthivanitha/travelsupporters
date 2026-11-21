@@ -322,7 +322,9 @@ form.addEventListener("submit", async event => {
   }
   const payload = JSON.stringify(trip);
   if (pendingRegistration?.payload !== payload) {
-    pendingRegistration = {payload, id: crypto.randomUUID()};
+    const token = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
+      .replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+    pendingRegistration = {payload, id: crypto.randomUUID(), token};
   }
   continueStep.disabled = true;
   previousStep.disabled = true;
@@ -332,7 +334,7 @@ form.addEventListener("submit", async event => {
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({...trip, id: pendingRegistration.id}),
+      body: JSON.stringify({...trip, id: pendingRegistration.id, manageToken: pendingRegistration.token}),
       signal: AbortSignal.timeout(15000),
     });
     const result = await response.json();
@@ -340,10 +342,17 @@ form.addEventListener("submit", async event => {
       formStatus.textContent = result.message || "Registration could not be confirmed. Please try again.";
       return;
     }
+    const privateLink = new URL("/trip.html", location.origin);
+    privateLink.hash = new URLSearchParams({view: "manage", id: result.id, token: pendingRegistration.token});
     pendingRegistration = null;
     showRegistration(false);
     registrationStatus.hidden = false;
     registrationStatus.textContent = "Registration received. Save your reference number: " + result.id;
+    const link = append(registrationStatus, "a", " Manage this trip");
+    link.href = privateLink.href;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    append(registrationStatus, "span", " — save this private link to edit or withdraw your trip.");
     registrationStatus.focus();
     if (trip.publish) {
       search = new URLSearchParams();

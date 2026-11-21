@@ -20,9 +20,9 @@ SCOPES = {
 TRAVELERS = {"", "Myself", "A family member or friend"}
 
 
-def reply(status, **body):
+def reply(status_code, **body):
     return {
-        "statusCode": status,
+        "statusCode": status_code,
         "headers": {"Content-Type": "application/json", "Cache-Control": "no-store"},
         "body": json.dumps(body),
     }
@@ -200,6 +200,11 @@ def handler(event, context):
         share_language = payload.get("shareLanguage", False)
         if type(publish) is not bool or type(share_language) is not bool or (share_language and not publish):
             raise ValueError("Check the trip board preferences.")
+        manage_token = payload.get("manageToken", "")
+        if not isinstance(manage_token, str) or (manage_token and not re.fullmatch(r"[A-Za-z0-9_-]{43}", manage_token)):
+            raise ValueError("Invalid private trip token.")
+        if manage_token:
+            record["manageHash"] = hashlib.sha256(manage_token.encode()).hexdigest()
         if share_language:
             language = record["language"]
             if any(not (char.isalpha() or unicodedata.category(char).startswith("M") or char in " ,-'’") for char in language):

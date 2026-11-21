@@ -15,10 +15,13 @@ if [[ "$status" != 2?? ]]; then
   exit 1
 fi
 
+email_parameters=("ExistingWebsiteOrigin=$website")
+if [[ -n "${EMAIL_SENDER:-}" ]]; then email_parameters+=("EmailSender=$EMAIL_SENDER"); fi
+if [[ -n "${MATCH_ALERT_EMAIL:-}" ]]; then email_parameters+=("MatchAlertEmail=$MATCH_ALERT_EMAIL"); fi
 sam validate --region "$region"
 sam deploy --template-file template.yaml --stack-name "$stack" --region "$region" \
   --resolve-s3 --capabilities CAPABILITY_IAM --no-fail-on-empty-changeset \
-  --parameter-overrides "ExistingWebsiteOrigin=$website"
+  --parameter-overrides "${email_parameters[@]}"
 
 stack_output() {
   aws cloudformation describe-stacks --stack-name "$stack" --region "$region" \
@@ -50,6 +53,8 @@ stack_output AdminConfig > "$stage/admin-config.json"
 aws s3 cp "$stage/admin-config.json" "s3://$bucket/admin-config.json" --content-type application/json --cache-control no-store --region "$region"
 aws s3 cp web/admin.html "s3://$bucket/admin.html" --region "$region"
 aws s3 cp web/admin.js "s3://$bucket/admin.js" --region "$region"
+aws s3 cp web/trip.html "s3://$bucket/trip.html" --region "$region"
+aws s3 cp web/trip.js "s3://$bucket/trip.js" --region "$region"
 printf 'Admin panel: https://travelsupporters.com/admin.html\nCognito user pool: %s\n' "$(stack_output AdminPoolId)"
 aws s3 cp web/style.css "s3://$bucket/style.css" --region "$region"
 aws s3 cp web/airports.json "s3://$bucket/airports.json" --region "$region"

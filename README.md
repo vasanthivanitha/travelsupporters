@@ -54,3 +54,23 @@ The panel shows registration references, trip routes, dates, and visibility. Cho
 Choose **Find and share** on a companion request. The panel compares registrations on the same airport route, accounts for date flexibility, and prioritizes matching first flights. It shows differences in connecting flights when both travelers supplied them and highlights shared languages and help categories. Administrators can open an email draft for a matching supporter and should confirm the full itinerary before connecting travelers.
 
 Confirm the traveler's permission before copying or sharing the post. The starter draft uses the route, date, selected help categories, and a link that prefills the support form. Use the WhatsApp or Facebook action, or save your own Desi community website or group links and open them to post the draft. Saved community links stay in that browser. The AI prompt is copyable for use in a writing assistant. The app does not automatically publish posts or search social profiles for travelers.
+
+
+### Coordinate and confirm a match
+
+In **Find and share**, invite a possible supporter as the primary or backup. Each person gets a different private link to accept or decline. The admin panel shows **Open**, **Invited**, **Confirmed**, or **Closed**, plus individual responses. Email addresses become visible in the private primary invitation only after both accept. A backup can respond in advance and shares contact details only once promoted. Confirm the full itinerary before scheduling an airport meeting. If you need to replace an active match, cancel it or promote the backup from the same panel.
+
+New registrations display a private **Manage this trip** link on the receipt. Save that link to edit the departure date or first flight number, or withdraw the trip. For earlier submissions, an administrator can generate a new private management link. Generating a replacement invalidates the previous link. The invitation page also accepts reconfirmation and an optional public meeting point.
+
+The community post language selector includes English, Hindi, Telugu, and Tamil. Translated drafts include the route, date, and prefilled support link. Review the draft before sharing.
+
+### Enable email delivery
+
+Verify a sender address in Amazon SES in your deployment region and use SES production access for sending to unverified recipients. In the SES sandbox, verify recipient addresses as well. Deploy from CloudShell with these settings:
+
+```bash
+EMAIL_SENDER=verified-sender@example.com MATCH_ALERT_EMAIL=admin@example.com \
+  ./deploy.sh travel-supporters us-east-1
+```
+
+The hourly job emails the admin a digest when it finds newly matched offers, and reminds both people to reconfirm within two days of departure for confirmed primary matches. Private invitations and replacement management links send immediately when email is enabled. If SES cannot send an invitation, the admin panel offers private links and email drafts to send manually.
