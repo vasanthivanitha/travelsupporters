@@ -80,3 +80,12 @@ The hourly job emails the admin a digest when it finds newly matched offers, and
 In the admin panel, use **Public community directory** to add a direct Facebook group URL or a community website's posting page. These destinations are visible to all visitors. The private, browser-saved community links in **Find and share** are separate.
 
 On the public trip board, choose **Share request** and select a destination. The general Facebook option opens Facebook's share composer with the supporter link. Facebook controls which groups are available to the signed-in user. For a specific Facebook group or community website, copy the draft, open the selected destination, and paste it into the posting form. The site does not publish to third-party groups or community websites without the visitor completing their posting flow.
+
+
+### Trip offers, alerts, reports, and check-ins
+
+- Select **Offer help for this trip** on an open companion request to prefill and link the offer. It appears in that request's admin matches.
+- Use **Urgent requests only** to find trips departing in the next seven days that still need a supporter.
+- **Get route alerts** accepts one or both airports. Subscribers confirm by email, receive matching public requests, and can unsubscribe from their private alert page.
+- **Report listing** sends a private report to **Listing reports** in the admin panel. Marking it reviewed clears it from the review queue.
+- Confirmed matches can send a private **After-trip check-in** from the invitation page up to 30 days after the travel date. The scheduled job emails a check-in link after departure, and admins can read responses in **Find and share**. Route alert emails and check-in email delivery require the verified SES sender described above.

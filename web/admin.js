@@ -137,6 +137,30 @@ const directoryForm = document.querySelector("#directoryForm");
 const directoryStatus = document.querySelector("#directoryStatus");
 const directoryList = document.querySelector("#directoryList");
 
+const reportsStatus = document.querySelector("#reportsStatus");
+const reportsList = document.querySelector("#reportsList");
+
+async function loadReports(action = "list", id = "") {
+  const url = new URL(adminEndpoint, location.origin);
+  url.pathname = "/api/admin/reports";
+  reportsStatus.textContent = "Loading reports…";
+  try {
+    const result = await adminRequest(url, {method: "POST", body: JSON.stringify({action, id})});
+    if (!result) return;
+    reportsList.replaceChildren();
+    for (const report of result.reports) {
+      const row = add(reportsList, "li", "");
+      add(row, "strong", report.reason);
+      add(row, "p", report.route + " · " + report.date + " · Reference " + report.reference);
+      if (report.note) add(row, "p", report.note);
+      coordinationButton(row, "Mark reviewed", () => loadReports("review", report.id));
+    }
+    reportsStatus.textContent = result.reports.length ? "" : "No reports awaiting review.";
+  } catch (error) {
+    reportsStatus.textContent = error.message;
+  }
+}
+
 function directoryUrl(write = false) {
   const url = new URL(adminEndpoint, location.origin);
   url.pathname = write ? "/api/admin/communities" : "/api/communities";
@@ -324,6 +348,10 @@ async function loadCoordination(request) {
     ", supporter " + slot.supporter + (slot.current ? "" : " · itinerary changed"));
   coordinationStatus.textContent = "Request status: " + result.status + (summaries.length ? " · " + summaries.join(" · ") : "");
   coordinationActions.replaceChildren();
+  for (const [party, response] of Object.entries(result.slots.primary?.feedback || {})) {
+    add(coordinationActions, "p", (party === "traveler" ? "Traveler" : "Supporter") +
+      " check-in · connected: " + response.connected + (response.helpful ? " · helpful: " + response.helpful : ""));
+  }
   coordinationButton(coordinationActions, "Refresh match status", () => loadCoordination(request));
   if (result.status === "Closed") return;
   if (result.slots.primary) {
@@ -350,6 +378,7 @@ async function loadCoordination(request) {
 function showMatch(match, request) {
   const row = add(matchResults, "li", "");
   add(row, "strong", match.sameFlight ? "Same first flight" : "Possible route match");
+  if (match.linkedToRequest) add(row, "p", "Offered help for this request");
   add(row, "p", "Departure " + match.date + " · Reference " + match.id);
   if (match.connectionDiffers) add(row, "p", "Connection details differ.");
   if (match.helpInCommon.length) add(row, "p", "Help in common: " + match.helpInCommon.map(key => helpLabels[key]).join(", "));
@@ -550,7 +579,7 @@ async function initialize() {
   await finishLogin(new URLSearchParams(location.search));
   signOut.hidden = false;
   review.hidden = false;
-  await Promise.all([loadPage(), loadDirectory()]);
+  await Promise.all([loadPage(), loadDirectory(), loadReports()]);
 }
 
 initialize().catch(error => showSignedOut(error.message));

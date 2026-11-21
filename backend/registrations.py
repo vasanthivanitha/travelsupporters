@@ -104,30 +104,30 @@ def validate(payload):
     return record
 
 
-def public_languages(table, items):
+def public_trip_details(table, items):
     if not items:
         return {}
     try:
         result = dynamodb.batch_get_item(RequestItems={
             table: {
                 "Keys": [{"id": item["id"]} for item in items],
-                "ProjectionExpression": "#id, #language",
-                "ExpressionAttributeNames": {"#id": "id", "#language": "publicLanguage"},
+                "ProjectionExpression": "#id, #language, #confirmed",
+                "ExpressionAttributeNames": {"#id": "id", "#language": "publicLanguage", "#confirmed": "matchConfirmed"},
             }
         })
     except ClientError as error:
         logger.warning("Public language lookup failed: code=%s", error.response.get("Error", {}).get("Code"))
         return {}
     return {
-        item["id"]["S"]: item["publicLanguage"]["S"]
+        item["id"]["S"]: item
         for item in result["Responses"].get(table, [])
-        if "publicLanguage" in item
     }
 
 
 def list_trips(event):
     params = event.get("queryStringParameters") or {}
-    today = datetime.now(timezone.utc).date().isoformat()
+    current_date = datetime.now(timezone.utc).date()
+    today = current_date.isoformat()
     query = {
         "TableName": os.environ["TABLE_NAME"],
         "IndexName": "PublicTrips",
@@ -172,12 +172,18 @@ def list_trips(event):
         )
         return reply(503, message="The trip board is temporarily unavailable. Try again.")
     items = results.get("Items", [])
-    languages = public_languages(query["TableName"], items)
+    details = public_trip_details(query["TableName"], items)
+    urgent_through = (current_date + timedelta(days=7)).isoformat()
     trips = [
         {
             **{key: item[key]["S"] for key in ("role", "from", "to", "date")},
             "support": [value["S"] for value in item.get("support", {}).get("L", [])],
-            "language": languages.get(item["id"]["S"]),
+            "language": details.get(item["id"]["S"], {}).get("publicLanguage", {}).get("S"),
+            "reference": item["id"]["S"],
+            "urgent": item["role"]["S"] == "request" and item["id"]["S"] in details and item["date"]["S"] <= urgent_through
+                      and not details.get(item["id"]["S"], {}).get("matchConfirmed", {}).get("BOOL", False),
+            "seekingSupport": item["role"]["S"] == "request" and item["id"]["S"] in details
+                              and not details.get(item["id"]["S"], {}).get("matchConfirmed", {}).get("BOOL", False),
         }
         for item in items
     ]
@@ -200,6 +206,19 @@ def handler(event, context):
         share_language = payload.get("shareLanguage", False)
         if type(publish) is not bool or type(share_language) is not bool or (share_language and not publish):
             raise ValueError("Check the trip board preferences.")
+        target = field(payload, "requestReference", 36)
+        if target:
+            if record["role"] != "offer" or str(UUID(target)) != target:
+                raise ValueError("Invalid companion request reference.")
+            names = {f"#{key}": key for key in ("id", "role", "from", "to", "date", "listing", "matchConfirmed")}
+            item = dynamodb.get_item(TableName=os.environ["TABLE_NAME"], Key={"id": {"S": target}},
+                                     ConsistentRead=True, ProjectionExpression=", ".join(names),
+                                     ExpressionAttributeNames=names).get("Item", {})
+            if (item.get("role", {}).get("S") != "request" or item.get("listing", {}).get("S") != "PUBLIC"
+                or item.get("matchConfirmed", {}).get("BOOL") or
+                any(item.get(key, {}).get("S") != record[key] for key in ("from", "to", "date"))):
+                return reply(409, message="This request or its route has changed. Go back to the trip board and choose an open request.")
+            record["requestReference"] = target
         manage_token = payload.get("manageToken", "")
         if not isinstance(manage_token, str) or (manage_token and not re.fullmatch(r"[A-Za-z0-9_-]{43}", manage_token)):
             raise ValueError("Invalid private trip token.")
@@ -210,6 +229,8 @@ def handler(event, context):
             if any(not (char.isalpha() or unicodedata.category(char).startswith("M") or char in " ,-'’") for char in language):
                 raise ValueError("Enter only language names separated by commas to share them publicly.")
             record["publicLanguage"] = language
+    except ClientError:
+        return reply(503, message="The linked request could not be verified. Try again.")
     except ValueError as error:
         message = "Send valid JSON." if isinstance(error, json.JSONDecodeError) else str(error)
         return reply(400, message=message)

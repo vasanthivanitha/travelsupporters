@@ -61,7 +61,7 @@ def flexibility(item):
 
 def find_supporters(table, identifier):
     fields = ("id", "role", "from", "to", "date", "flight", "connection", "connectingFlight1",
-              "connectingFlight2", "flex", "language", "support")
+              "connectingFlight2", "flex", "language", "support", "requestReference")
     names = {f"#{key}": key for key in fields}
     request = dynamodb.get_item(
         TableName=table, Key={"id": {"S": registration_id(identifier)}},
@@ -102,9 +102,10 @@ def find_supporters(table, identifier):
             match = {
                 "id": text(offer, "id"), "date": text(offer, "date"), "email": text(offer, "email"),
                 "sameFlight": same_flight, "connectionDiffers": connections_differ,
+                "linkedToRequest": text(offer, "requestReference") == identifier,
                 "helpInCommon": help_in_common, "languagesInCommon": language_in_common,
             }
-            matches.append(((not same_flight, days, connections_differ, -len(help_in_common), -len(language_in_common)), match))
+            matches.append(((not same_flight, not match["linkedToRequest"], days, connections_differ, -len(help_in_common), -len(language_in_common)), match))
         if not page.get("LastEvaluatedKey"):
             break
         scan["ExclusiveStartKey"] = page["LastEvaluatedKey"]

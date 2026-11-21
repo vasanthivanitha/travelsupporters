@@ -5,6 +5,7 @@ const details = document.querySelector("#tripDetails");
 const manageForm = document.querySelector("#manageTrip");
 const invitation = document.querySelector("#invitation");
 const meetingForm = document.querySelector("#meetingForm");
+const afterTrip = document.querySelector("#afterTrip");
 const controls = [...details.querySelectorAll("button")];
 let endpoint = "/api/trip";
 let busy = false;
@@ -15,9 +16,14 @@ function show(result) {
   state.textContent = result.status + (result.date ? " · Departure " + result.date : "");
   if (result.supporterDate && result.supporterDate !== result.date) state.textContent += " · Supporter departs " + result.supporterDate;
   const isInvite = credentials.view === "invite";
-  invitation.hidden = !isInvite;
+  invitation.hidden = !isInvite || result.checkIn;
+  afterTrip.hidden = !result.checkIn || result.submitted;
   manageForm.hidden = isInvite || result.status === "Closed";
   details.hidden = false;
+  if (result.checkIn) {
+    if (result.submitted) state.textContent += " · Check-in received.";
+    return;
+  }
   if (!isInvite) {
     if (result.date) manageForm.elements.date.value = result.date;
     if (result.flight !== undefined) manageForm.elements.flight.value = result.flight;
@@ -58,6 +64,16 @@ async function request(action, extra = {}) {
   }
 }
 
+afterTrip.elements.connected.addEventListener("change", () => {
+  const showHelp = afterTrip.elements.connected.value === "yes";
+  document.querySelector("#helpfulField").hidden = !showHelp;
+  afterTrip.elements.helpful.required = showHelp;
+  if (!showHelp) afterTrip.elements.helpful.value = "";
+});
+afterTrip.addEventListener("submit", event => {
+  event.preventDefault();
+  request("feedback", {connected: afterTrip.elements.connected.value, helpful: afterTrip.elements.helpful.value});
+});
 manageForm.addEventListener("submit", event => {
   event.preventDefault();
   request("save", {date: manageForm.elements.date.value, flight: manageForm.elements.flight.value.trim().toUpperCase()});

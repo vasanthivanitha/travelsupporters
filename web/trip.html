@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <title>Manage your trip | Travel Supports</title>
-<link rel="stylesheet" href="style.css?v=8">
-<script defer src="trip.js"></script>
+<link rel="stylesheet" href="style.css?v=11">
+<script defer src="trip.js?v=11"></script>
 </head>
 <body>
 <header><nav class="wrap"><a class="brand" href="/">Travel Supports</a></nav></header>
@@ -29,6 +29,13 @@
 <button type="submit">Reconfirm trip</button>
 </form>
 </div>
+<form id="afterTrip" hidden>
+<h3>After-trip check-in</h3>
+<p>Your answers are private to the Travel Supports administrator.</p>
+<label>Did you connect with your match?<select name="connected" required><option value="">Choose an answer</option><option value="yes">Yes</option><option value="no">No</option></select></label>
+<label id="helpfulField" hidden>Was the support helpful?<select name="helpful"><option value="">Choose an answer</option><option value="yes">Yes</option><option value="no">No</option></select></label>
+<button type="submit">Send check-in</button>
+</form>
 <form id="manageTrip" hidden>
 <div class="fields">
 <label>Departure date<input name="date" type="date" required></label>

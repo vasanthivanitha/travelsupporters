@@ -86,6 +86,12 @@ def update(item, assignments, remove=()):
     )
 
 
+def save_coordination(trip, state):
+    primary = state.get("primary")
+    update(trip, {"coordination": {"S": json.dumps(state)},
+                  "matchConfirmed": {"BOOL": bool(primary and both_accepted(primary) and not state.get("closed"))}})
+
+
 def link(page, identifier, token, origin=None):
     base = origin or os.environ.get("SITE_ORIGIN", "https://travelsupporters.com")
     return base + "/trip.html#" + urlencode({"view": page, "id": identifier, "token": token})
@@ -141,7 +147,8 @@ def admin_action(data):
             if slot:
                 supporter = get_trip(slot["offer"])
                 result[key] = {**{field: slot[field] for field in ("offer", "traveler", "supporter")},
-                               "current": bool(slot_is_current(trip, slot, supporter))}
+                               "current": bool(slot_is_current(trip, slot, supporter)),
+                               "feedback": slot.get("feedback", {})}
         return reply(200, status=public_status(trip, state), slots=result)
     if action == "manageLink":
         token = secrets.token_urlsafe(32)
@@ -157,7 +164,7 @@ def admin_action(data):
         return reply(200, status="Closed")
     if action == "cancelPrimary":
         state.pop("primary", None)
-        update(trip, {"coordination": {"S": json.dumps(state)}})
+        save_coordination(trip, state)
         return reply(200, status="Open")
     if action == "promote":
         backup = state.get("backup")
@@ -167,7 +174,7 @@ def admin_action(data):
         if not slot_is_current(trip, backup, supporter):
             return reply(409, message="The backup itinerary has changed. Invite again.")
         state["primary"] = state.pop("backup")
-        update(trip, {"coordination": {"S": json.dumps(state)}})
+        save_coordination(trip, state)
         return reply(200, status=public_status(trip, state))
     if action != "invite" or data.get("slot") not in ("primary", "backup"):
         raise ValueError("Invalid coordination action.")
@@ -184,7 +191,7 @@ def admin_action(data):
         "tokens": {party: digest(token) for party, token in tokens.items()},
         "travelerTrip": snapshot(trip), "supporterTrip": snapshot(offer), "origin": origin,
     }
-    update(trip, {"coordination": {"S": json.dumps(state)}})
+    save_coordination(trip, state)
     links = []
     for party, item in (("traveler", trip), ("supporter", offer)):
         url = link("invite", identifier, tokens[party], origin)
@@ -230,29 +237,43 @@ def respond(data, trip):
         if not slot:
             continue
         for party, expected in slot["tokens"].items():
-            if token_matches(expected, data.get("token")) or token_matches(slot.get("reminderTokens", {}).get(party), data.get("token")):
+            if token_matches(expected, data.get("token")) or token_matches(slot.get("reminderTokens", {}).get(party), data.get("token")) or token_matches(slot.get("feedbackTokens", {}).get(party), data.get("token")):
                 return respond_to_slot(data, trip, state, slot, key, party)
     return reply(404, message="This invitation is invalid or has been replaced.")
 
 
 def respond_to_slot(data, trip, state, slot, key, party):
     offer = get_trip(slot["offer"])
-    if not slot_is_current(trip, slot, offer) or not route_compatible(trip, offer):
-        return reply(409, message="The itinerary changed or the trip has passed. Contact the Travel Supports administrator.")
+    if not slot_is_current(trip, slot, offer):
+        return reply(409, message="The itinerary changed. Contact the Travel Supports administrator.")
     action = data.get("action", "view")
     confirmed = key == "primary" and both_accepted(slot)
+    last_departure = max(date.fromisoformat(value(item, "date")) for item in (trip, offer))
+    days_since_trip = (today() - last_departure).days
+    if confirmed and 1 <= days_since_trip <= 30:
+        if action == "feedback":
+            connected = field(data, "connected", 3, r"yes|no", True)
+            helpful = field(data, "helpful", 3, r"yes|no", required=connected == "yes")
+            slot.setdefault("feedback", {})[party] = {"connected": connected, "helpful": helpful if connected == "yes" else ""}
+            save_coordination(trip, state)
+        elif action != "view":
+            return reply(409, message="Use the after-trip check-in for this completed match.")
+        return reply(200, status="Trip completed", checkIn=True, submitted=party in slot.get("feedback", {}),
+                     route=" to ".join(snapshot(trip)[1:3]), date=value(trip, "date"))
+    if not route_compatible(trip, offer):
+        return reply(409, message="The itinerary changed or the trip has passed. Contact the Travel Supports administrator.")
     if action in ("accept", "decline"):
         if slot[party] == "declined":
             return reply(409, message="You already declined. Ask the administrator for a new invitation.")
         slot[party] = "accepted" if action == "accept" else "declined"
-        update(trip, {"coordination": {"S": json.dumps(state)}})
+        save_coordination(trip, state)
         confirmed = key == "primary" and both_accepted(slot)
     elif action == "reconfirm" and confirmed:
         slot[party + "Reconfirmed"] = True
         meeting = field(data, "meeting", 180)
         if meeting:
             slot["meeting"] = meeting
-        update(trip, {"coordination": {"S": json.dumps(state)}})
+        save_coordination(trip, state)
     elif action != "view":
         raise ValueError("Invalid invitation action.")
     other_party = "supporter" if party == "traveler" else "traveler"
@@ -341,7 +362,29 @@ def scheduled_notifications():
                         logger.warning("Could not mark match alert: code=%s", error.response.get("Error", {}).get("Code"))
     for request in requests:
         send_reminders(request, items)
+    for request in items.values():
+        if value(request, "role") == "request" and not closed(request):
+            send_check_ins(request, items)
+    if os.environ.get("ENGAGEMENT_TABLE"):
+        from engagement import send_route_alerts
+        send_route_alerts(open_requests)
     return {"status": "Notifications checked"}
+
+
+def send_check_ins(request, items):
+    state = state_of(request)
+    slot = state.get("primary")
+    if not slot or not both_accepted(slot):
+        return
+    offer = items.get(slot["offer"], {})
+    if not slot_is_current(request, slot, offer):
+        return
+    last_departure = max(date.fromisoformat(value(item, "date")) for item in (request, offer))
+    if not 1 <= (today() - last_departure).days <= 30:
+        return
+    deliver_match_emails(request, offer, state, "checkIns", "feedbackTokens",
+                         "How did your Travel Supports trip go?",
+                         "Tell us privately whether you connected and whether the support helped.")
 
 
 def send_reminders(request, items):
@@ -355,28 +398,34 @@ def send_reminders(request, items):
     first_departure = min(date.fromisoformat(value(item, "date")) for item in (request, offer))
     if not 0 <= (first_departure - today()).days <= 2:
         return
-    delivery = slot.setdefault("reminders", {})
-    tokens = slot.setdefault("reminderTokens", {})
+    deliver_match_emails(request, offer, state, "reminders", "reminderTokens",
+                         "Reconfirm your upcoming Travel Supports trip",
+                         "Please check your itinerary and agree on a public meeting point.")
+
+
+def deliver_match_emails(request, offer, state, delivery_key, token_key, subject, message):
+    slot = state["primary"]
+    delivery = slot.setdefault(delivery_key, {})
+    tokens = slot.setdefault(token_key, {})
     pending = [(party, item) for party, item in (("traveler", request), ("supporter", offer)) if not delivery.get(party)]
     if not pending:
         return
     new_tokens = {party: secrets.token_urlsafe(32) for party, _ in pending}
     tokens.update({party: digest(token) for party, token in new_tokens.items()})
     try:
-        update(request, {"coordination": {"S": json.dumps(state)}})
+        save_coordination(request, state)
     except ClientError:
         return
     for party, item in pending:
         url = link("invite", value(request, "id"), new_tokens[party], slot.get("origin"))
-        if send_email(value(item, "email"), "Reconfirm your upcoming Travel Supports trip",
-                      "Please check your itinerary and agree on a public meeting point.\n" + url):
+        if send_email(value(item, "email"), subject, message + "\n" + url):
             delivery[party] = True
     refreshed = get_trip(value(request, "id"))
     current = state_of(refreshed)
-    if current.get("primary", {}).get("reminderTokens") != tokens:
+    if current.get("primary", {}).get(token_key) != tokens:
         return
-    current["primary"].setdefault("reminders", {}).update(delivery)
+    current["primary"].setdefault(delivery_key, {}).update(delivery)
     try:
-        update(refreshed, {"coordination": {"S": json.dumps(current)}})
+        save_coordination(refreshed, current)
     except ClientError:
-        logger.warning("Could not mark departure reminders as delivered")
+        logger.warning("Could not mark match emails as delivered")

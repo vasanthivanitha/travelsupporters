@@ -55,7 +55,7 @@ aws s3 sync web/ "s3://$bucket/" --region "$region"
 printf 'Website: %s\nAdmin panel: %s/admin.html\nCognito user pool: %s\nDynamoDB table: %s\n' \
   "$website" "$website" "$(stack_output AdminPoolId)" "$table"
 
-for page in "/" "/admin.html" "/trip.html"; do
+for page in "/" "/admin.html" "/trip.html" "/alerts.html"; do
   if ! curl --fail --silent --show-error --retry 3 --retry-delay 5 --max-time 15 "$website$page" >/dev/null; then
     printf 'CloudFront did not serve %s. Check the distribution origin and S3 bucket policy.\n' "$website$page" >&2
     exit 1

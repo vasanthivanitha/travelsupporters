@@ -7,8 +7,8 @@
 <meta name="description" content="Find a companion or help a fellow traveler on an international flight to or from India.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="style.css?v=10">
-<script defer src="app.js?v=10"></script>
+<link rel="stylesheet" href="style.css?v=11">
+<script defer src="app.js?v=11"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -29,6 +29,7 @@
 <div class="registration-body">
 <section class="registration-step" aria-labelledby="routeHeading">
 <h3 id="routeHeading" tabindex="-1">Where are you flying?</h3>
+<p id="linkedRequestHint" hidden>This offer is linked to the request below. Keep the same airports and date.</p>
 <div class="fields route-fields">
 <label>Travel direction<select name="direction" required><option value="outbound">India to another country</option><option value="inbound">Another country to India</option></select></label>
 <label>Departure date<input name="date" type="date" required></label>
@@ -116,14 +117,18 @@
 </form>
 </details>
 </div>
-<p id="registrationStatus" role="status" tabindex="-1" hidden></p><p id="count" class="trip-count" role="status"></p><div id="tripResults" class="trip-results" hidden>
+<p id="registrationStatus" role="status" tabindex="-1" hidden></p><div class="trip-board-actions">
+<p id="count" class="trip-count" role="status"></p>
+<label class="urgent-filter"><input id="urgentTrips" type="checkbox"> Urgent requests only</label>
+<a href="alerts.html">Get route alerts</a>
+</div><div id="tripResults" class="trip-results" hidden>
 <table class="trip-table" role="table" aria-label="Upcoming trips">
 <thead role="rowgroup"><tr role="row">
 <th role="columnheader" scope="col">Travel date</th>
 <th role="columnheader" scope="col">Route</th>
 <th role="columnheader" scope="col">Trip type</th>
 <th role="columnheader" scope="col">Languages spoken</th>
-<th role="columnheader" scope="col">Share</th>
+<th role="columnheader" scope="col">Actions</th>
 </tr></thead>
 <tbody id="tripRows" role="rowgroup"></tbody>
 </table>
@@ -138,6 +143,16 @@
 <button type="button" id="closePublicShare" class="outline">Close</button>
 </div>
 <p id="publicShareStatus" role="status"></p>
+</section>
+<section id="reportListing" class="outreach card" aria-labelledby="reportTitle" hidden>
+<h3 id="reportTitle" tabindex="-1">Report a listing</h3>
+<p id="reportRoute"></p>
+<form id="reportForm">
+<label>Reason<select name="reason" required><option value="">Select a reason</option><option>Suspicious listing</option><option>Inappropriate message</option><option>Unexpected fee</option><option>Other</option></select></label>
+<label>Details (optional)<textarea name="note" maxlength="400" rows="3" placeholder="Leave out booking details or contact information"></textarea></label>
+<div class="actions outreach-actions"><button type="submit">Send report</button><button type="button" id="closeReport" class="outline">Close</button></div>
+</form>
+<p id="reportStatus" role="status"></p>
 </section>
 <button id="retryTrips" class="outline board-more" type="button" hidden>Retry</button>
 </div></section>

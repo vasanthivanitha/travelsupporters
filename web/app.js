@@ -34,6 +34,8 @@ const retryTrips = document.querySelector("#retryTrips");
 const tripSearch = document.querySelector("#tripSearch");
 const tripSort = document.querySelector("#tripSort");
 const activeFilterCount = document.querySelector("#activeFilterCount");
+const urgentTrips = document.querySelector("#urgentTrips");
+let linkedRequest = "";
 const collator = new Intl.Collator("en", {sensitivity: "base"});
 let airportData = {};
 let loadedTrips = [];
@@ -151,6 +153,7 @@ function openPublicShare(trip, trigger) {
   shareTrigger = trigger;
   const offer = new URL("/", location.origin);
   offer.search = new URLSearchParams({offer: "1", from: trip.from, to: trip.to, date: trip.date});
+  if (trip.reference && trip.seekingSupport) offer.searchParams.set("request", trip.reference);
   shareOfferUrl = offer.href;
   shareDraft.value = "Travel companion wanted | " + airport(trip.from) + " to " + airport(trip.to) +
     " | " + travelDate(trip) + "\n\nAlready flying this route? Offer support through Travel Supports:\n" + shareOfferUrl;
@@ -184,6 +187,51 @@ document.querySelector("#closePublicShare").addEventListener("click", () => {
   else tripSearch.focus();
 });
 
+const reportPanel = document.querySelector("#reportListing");
+const reportForm = document.querySelector("#reportForm");
+const reportStatus = document.querySelector("#reportStatus");
+let reportTrip;
+let reportTrigger;
+function openReport(trip, button) {
+  reportTrip = trip;
+  reportTrigger = button;
+  reportForm.reset();
+  reportStatus.textContent = "";
+  document.querySelector("#reportRoute").textContent = airport(trip.from) + " to " + airport(trip.to) + " · " + travelDate(trip);
+  reportPanel.hidden = false;
+  document.querySelector("#reportTitle").focus();
+}
+document.querySelector("#closeReport").addEventListener("click", () => {
+  reportPanel.hidden = true;
+  if (reportTrigger?.isConnected) reportTrigger.focus();
+  else tripSearch.focus();
+});
+reportForm.addEventListener("submit", async event => {
+  event.preventDefault();
+  const trip = reportTrip;
+  const data = Object.fromEntries(new FormData(reportForm));
+  const button = reportForm.querySelector('[type="submit"]');
+  button.disabled = true;
+  reportStatus.textContent = "Sending report…";
+  try {
+    const url = new URL("/api/reports", new URL(endpoint, location.origin));
+    const response = await fetch(url, {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({...data, reference: trip.reference}),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message);
+    if (reportTrip === trip) {
+      reportForm.reset();
+      reportStatus.textContent = result.message;
+    }
+  } catch (error) {
+    if (reportTrip === trip) reportStatus.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
 function tripType(trip) {
   return trip.role === "offer" ? "Supporter offer" : "Companion request";
 }
@@ -205,6 +253,7 @@ function updateActiveFilters() {
 function render() {
   const terms = tripSearch.value.toLocaleLowerCase().trim().split(/\s+/).filter(Boolean);
   const rows = loadedTrips.filter(trip => {
+    if (urgentTrips.checked && !trip.urgent) return false;
     if (!terms.length) return true;
     const searchable = [trip.date, travelDate(trip), airport(trip.from), airport(trip.to), tripType(trip), trip.language]
       .join(" ").toLocaleLowerCase();
@@ -231,8 +280,10 @@ function render() {
   for (const trip of rows) {
     const row = tripRows.insertRow();
     row.setAttribute("role", "row");
-    const date = append(tripCell(row, "Travel date"), "time", travelDate(trip));
+    const dateBlock = append(tripCell(row, "Travel date"), "div", "", "trip-date-block");
+    const date = append(dateBlock, "time", travelDate(trip));
     date.dateTime = trip.date;
+    if (trip.urgent) append(date.parentElement, "span", "Urgent · needs supporter", "trip-urgent");
     const route = append(tripCell(row, "Route"), "span", "", "trip-route");
     routeEndpoint(route, trip.from);
     append(route, "span", "to", "trip-route-divider");
@@ -240,19 +291,28 @@ function render() {
     const badge = append(tripCell(row, "Trip type"), "span", tripType(trip), "badge trip-badge");
     badge.dataset.role = trip.role;
     append(tripCell(row, "Languages spoken"), "span", trip.language || "Not shared", trip.language ? "" : "trip-muted");
-    const shareCell = tripCell(row, "Share");
+    const actionCell = tripCell(row, "Actions");
+    const actions = append(actionCell, "div", "", "trip-row-actions");
+    if (trip.reference && trip.seekingSupport) {
+      const offer = append(actions, "button", "Offer help for this trip", "trip-share-button");
+      offer.type = "button";
+      offer.addEventListener("click", () => startTripOffer(trip, offer));
+    }
     if (trip.role === "request") {
-      const share = append(shareCell, "button", "Share request", "outline trip-share-button");
+      const share = append(actions, "button", "Share request", "outline trip-share-button");
       share.type = "button";
       share.addEventListener("click", () => openPublicShare(trip, share));
-    } else {
-      append(shareCell, "span", "—");
+    }
+    if (trip.reference) {
+      const report = append(actions, "button", "Report listing", "outline trip-share-button");
+      report.type = "button";
+      report.addEventListener("click", () => openReport(trip, report));
     }
   }
   if (boardLoaded) {
     count.textContent = rows.length
       ? rows.length + (rows.length === 1 ? " upcoming trip shown." : " upcoming trips shown.")
-      : (terms.length || search.size ? "No trips match your search. Try a different search or reset the filters." : "No upcoming trips are listed yet.");
+      : (terms.length || search.size || urgentTrips.checked ? "No trips match your search. Try a different search or reset the filters." : "No upcoming trips are listed yet.");
   }
 }
 async function loadTrips() {
@@ -342,14 +402,16 @@ function showRegistration(visible) {
   }
 }
 
-function openForm(button) {
+function openForm(button, requestReference = "") {
   if (continueStep.disabled) return;
   registrationTrigger = button;
-  if (!registration.hidden && role === button.dataset.role) {
+  if (!registration.hidden && role === button.dataset.role && requestReference === linkedRequest) {
     showRegistrationStep(activeStep);
     return;
   }
   role = button.dataset.role;
+  linkedRequest = requestReference;
+  document.querySelector("#linkedRequestHint").hidden = !linkedRequest;
   form.reset();
   form.elements.shareLanguage.disabled = true;
   formStatus.textContent = "";
@@ -373,7 +435,8 @@ function openForm(button) {
 registrationButtons.forEach(button => button.addEventListener("click", () => openForm(button)));
 cancelRegistration.addEventListener("click", () => {
   showRegistration(false);
-  registrationTrigger.focus();
+  if (registrationTrigger.isConnected) registrationTrigger.focus();
+  else tripSearch.focus();
 });
 previousStep.addEventListener("click", () => showRegistrationStep(activeStep - 1));
 filters.addEventListener("submit", event => {
@@ -392,6 +455,7 @@ document.querySelector("#resetTripFilters").addEventListener("click", () => {
 });
 retryTrips.addEventListener("click", loadTrips);
 tripSearch.addEventListener("input", render);
+urgentTrips.addEventListener("change", render);
 tripSort.addEventListener("change", render);
 form.elements.publish.addEventListener("change", () => {
   form.elements.shareLanguage.disabled = !form.elements.publish.checked;
@@ -421,6 +485,7 @@ form.addEventListener("submit", async event => {
     trip[key] = details[key].trim();
   }
   if (role === "offer") {
+    if (linkedRequest) trip.requestReference = linkedRequest;
     trip.elder = details.elder;
     trip.payment = details.payment;
   }
@@ -463,6 +528,7 @@ form.addEventListener("submit", async event => {
     append(registrationStatus, "span", " — save this private link to edit or withdraw your trip.");
     registrationStatus.focus();
     if (trip.publish) {
+      urgentTrips.checked = false;
       search = new URLSearchParams();
       updateActiveFilters();
       filters.reset();
@@ -478,23 +544,31 @@ form.addEventListener("submit", async event => {
     cancelRegistration.disabled = false;
   }
 });
+function startTripOffer(trip, trigger) {
+  if (continueStep.disabled) return;
+  const button = registrationButtons.find(button => button.dataset.role === "offer");
+  const reference = trip.reference || "";
+  openForm(button, /^[a-f0-9-]{36}$/.test(reference) ? reference : "");
+  if (trigger) registrationTrigger = trigger;
+  const from = trip.from || "";
+  const to = trip.to || "";
+  if (airportData[from]?.[1] !== "IN" && airportData[to]?.[1] === "IN") {
+    form.elements.direction.value = "inbound";
+  }
+  for (const [name, code] of [["from", from], ["to", to]]) {
+    if (/^[A-Z]{3}$/.test(code)) form.elements[name].value = code;
+    updateAirport(form.elements[name]);
+  }
+  const date = trip.date || "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date) && date >= form.elements.date.min) form.elements.date.value = date;
+}
+
 const sharedOffer = new URLSearchParams(location.search);
 if (sharedOffer.get("offer") === "1") {
   airportDirectory.then(() => {
     if (!registration.hidden) return;
-    const button = registrationButtons.find(button => button.dataset.role === "offer");
-    openForm(button);
-    const from = sharedOffer.get("from") || "";
-    const to = sharedOffer.get("to") || "";
-    if (airportData[from]?.[1] !== "IN" && airportData[to]?.[1] === "IN") {
-      form.elements.direction.value = "inbound";
-    }
-    for (const [name, value] of [["from", from], ["to", to]]) {
-      if (/^[A-Z]{3}$/.test(value)) form.elements[name].value = value;
-      updateAirport(form.elements[name]);
-    }
-    const date = sharedOffer.get("date") || "";
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date) && date >= form.elements.date.min) form.elements.date.value = date;
+    startTripOffer({from: sharedOffer.get("from"), to: sharedOffer.get("to"),
+                    date: sharedOffer.get("date"), reference: sharedOffer.get("request")});
   });
 }
 loadTrips();

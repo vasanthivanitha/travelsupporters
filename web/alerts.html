@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Route alerts | Travel Supports</title>
+<link rel="stylesheet" href="style.css?v=11">
+<script defer src="alerts.js"></script>
+</head>
+<body>
+<header><nav class="wrap"><a class="brand" href="/">Travel Supports</a><a href="/#trips">Trip board</a></nav></header>
+<main class="wrap guide">
+<h1>Route alerts</h1>
+<p>Get email when a public companion request matches an airport or route you choose.</p>
+<form id="alertForm" class="card">
+<div class="fields">
+<label>Email address<input name="email" type="email" autocomplete="email" required maxlength="254"></label>
+<label>Departure airport code (optional)<input name="from" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. DEL"></label>
+<label>Arrival airport code (optional)<input name="to" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. LHR"></label>
+</div>
+<p>Enter at least one three-letter airport code. You’ll need to confirm your email address before receiving alerts.</p>
+<button type="submit">Subscribe to route alerts</button>
+</form>
+<div id="alertManage" class="card" hidden>
+<p id="alertRoute"></p>
+<div class="actions">
+<button type="button" data-alert-action="confirm">Confirm subscription</button>
+<button type="button" data-alert-action="unsubscribe" class="outline">Unsubscribe</button>
+</div>
+</div>
+<p id="alertStatus" role="status"></p>
+</main>
+</body>
+</html>
