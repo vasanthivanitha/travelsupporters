@@ -7,8 +7,8 @@
 <meta name="description" content="Find a companion or help a fellow traveler on an international flight to or from India.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="style.css?v=4">
-<script defer src="app.js?v=4"></script>
+<link rel="stylesheet" href="style.css?v=5">
+<script defer src="app.js?v=5"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -54,47 +54,78 @@
 </section>
 </main>
 <footer><div class="wrap"><a class="brand" href="#"><span aria-hidden="true">✈</span> Travel Supports</a><p>International travel to and from India</p></div></footer>
-<dialog id="editor" aria-labelledby="formTitle"><form id="tripForm"><button type="button" class="close outline" aria-label="Close form">×</button><h2 id="formTitle"></h2><p>Your contact information and flight details are private. Keep passport and booking details out of your notes.</p>
-<fieldset class="form-group">
-<legend>About you</legend>
+<dialog id="editor" class="registration-dialog" aria-labelledby="formTitle">
+<form id="tripForm" novalidate>
+<div class="registration-header">
+<button type="button" class="close outline" aria-label="Close form">×</button>
+<h2 id="formTitle"></h2>
+<ol class="registration-progress" aria-label="Registration progress">
+<li>Route</li><li>Contact</li><li>Preferences</li><li>Review</li>
+</ol>
+</div>
+<div class="registration-body">
+<section class="registration-step" aria-labelledby="routeHeading">
+<h3 id="routeHeading" tabindex="-1">Where are you flying?</h3>
+<div class="fields route-fields">
+<label>Travel direction<select name="direction" required><option value="outbound">India to another country</option><option value="inbound">Another country to India</option></select></label>
+<label>Departure date<input name="date" type="date" required></label>
+<label>Departure airport code<input name="from" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. HYD" list="trip-from-airports" aria-describedby="trip-from-name" autocomplete="off" required><datalist id="trip-from-airports"></datalist><span id="trip-from-name" class="airport-name" aria-live="polite"></span></label>
+<label>Arrival airport code<input name="to" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. LHR" list="trip-to-airports" aria-describedby="trip-to-name" autocomplete="off" required><datalist id="trip-to-airports"></datalist><span id="trip-to-name" class="airport-name" aria-live="polite"></span></label>
+<label>Departure city (optional)<input name="fromCity" maxlength="80" placeholder="e.g. Hyderabad"></label>
+<label>Arrival city (optional)<input name="toCity" maxlength="80" placeholder="e.g. London"></label>
+<label>Date flexibility<select name="flex"><option value="0">Travel date is fixed</option><option value="1">Within 1 day</option><option value="3">Within 3 days</option></select></label>
+</div>
+<details class="itinerary">
+<summary>Add flight details (optional)</summary>
+<div class="fields">
+<label>Airline for first departure (optional)<input name="airline" maxlength="80" placeholder="e.g. Air India"></label>
+<label>Departure time, local (optional)<input name="departureTime" type="time"></label>
+<label>First flight number (optional)<input name="flight" maxlength="15" placeholder="e.g. EK 525"></label>
+<label>First connecting flight (optional)<input name="connectingFlight1" maxlength="40" placeholder="e.g. EK 201 (DXB)"></label>
+<label>Second connecting flight (optional)<input name="connectingFlight2" maxlength="40" placeholder="e.g. UA 178 (JFK)"></label>
+<label>Connecting airport code (optional)<input name="connection" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. DOH"></label>
+</div>
+</details>
+</section>
+<section class="registration-step" aria-labelledby="contactHeading" hidden>
+<h3 id="contactHeading" tabindex="-1">How can we reach you?</h3>
+<p>Your contact details are available to the site operator and stay off the public trip board.</p>
 <div class="fields">
 <label>Full name<input name="name" autocomplete="name" required maxlength="100"></label>
 <label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
 <label>Contact number outside India (optional)<input name="phoneAbroad" type="tel" autocomplete="tel" maxlength="25" placeholder="e.g. +1 …"></label>
 <label>Contact number in India (optional)<input name="phoneIndia" type="tel" maxlength="25" placeholder="e.g. +91 …"></label>
 </div>
-</fieldset>
-<fieldset class="form-group">
-<legend>Your trip</legend>
+</section>
+<section class="registration-step" aria-labelledby="preferencesHeading" hidden>
+<h3 id="preferencesHeading" tabindex="-1"></h3>
 <div class="fields">
-<label>Travel direction<select name="direction" required><option value="outbound">India to another country</option><option value="inbound">Another country to India</option></select></label>
-<label>Airline for first departure (optional)<input name="airline" maxlength="80" placeholder="e.g. Air India"></label>
-<label>Departure city (optional)<input name="fromCity" maxlength="80" placeholder="e.g. Hyderabad"></label>
-<label>Arrival city (optional)<input name="toCity" maxlength="80" placeholder="e.g. London"></label>
-<label>Departure airport code<input name="from" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. HYD" list="trip-from-airports" aria-describedby="trip-from-name" autocomplete="off" required><datalist id="trip-from-airports"></datalist><span id="trip-from-name" class="airport-name" aria-live="polite"></span></label>
-<label>Arrival airport code<input name="to" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. LHR" list="trip-to-airports" aria-describedby="trip-to-name" autocomplete="off" required><datalist id="trip-to-airports"></datalist><span id="trip-to-name" class="airport-name" aria-live="polite"></span></label>
-<label>Departure date<input name="date" type="date" required></label>
-<label>Departure time, local (optional)<input name="departureTime" type="time"></label>
-<label>First flight number (optional)<input name="flight" maxlength="15" placeholder="e.g. EK 525"></label>
-<label>First connecting flight (optional)<input name="connectingFlight1" maxlength="40" placeholder="e.g. EK 201 (DXB)"></label>
-<label>Second connecting flight (optional)<input name="connectingFlight2" maxlength="40" placeholder="e.g. UA 178 (JFK)"></label>
-<label>Connecting airport code (optional)<input name="connection" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. DOH"></label>
-<label>Date flexibility<select name="flex"><option value="0">Travel date is fixed</option><option value="1">Within 1 day</option><option value="3">Within 3 days</option></select></label>
 <label id="tripForLabel">Who needs a companion?<select name="traveler"><option value="">Choose if applicable</option><option value="Myself">Myself</option><option value="A family member or friend">A family member or friend</option></select></label>
-</div>
-</fieldset>
-<fieldset class="form-group">
-<legend id="travelerDetails">Languages and preferences</legend>
-<div class="fields">
 <label>Languages spoken<input name="language" required maxlength="50" placeholder="e.g. Hindi, English"></label>
 <label id="scopeLabel">Where can you help?<select name="scope"><option value="">Choose if applicable</option><option value="Departure airport only">Departure airport only</option><option value="A connecting airport only">A connecting airport only</option><option value="Arrival airport only">Arrival airport only</option><option value="Throughout the journey">Throughout the journey</option></select></label>
 <label id="elderLabel">Comfortable assisting older travelers?<select name="elder"><option value="">Choose an option</option><option value="yes">Yes</option><option value="no">No</option></select></label>
 <label id="paymentLabel">Offer support for free or for a fee?<select name="payment"><option value="">Choose an option</option><option value="free">Free</option><option value="charge">Charge a fee</option></select></label>
 </div>
-</fieldset>
 <fieldset><legend id="supportLegend">Types of help</legend><div id="supportChoices" class="support-choices"></div></fieldset>
 <label><span id="notesLabel">Trip notes</span><textarea name="help" maxlength="240" rows="3" placeholder="e.g. Finding the gate and getting to baggage claim"></textarea></label>
+<p class="registration-note">Keep passport and booking details out of your notes.</p>
+</section>
+<section class="registration-step" aria-labelledby="reviewHeading" hidden>
+<h3 id="reviewHeading" tabindex="-1">Review and share</h3>
+<dl class="trip-preview">
+<div><dt>Route</dt><dd id="reviewRoute"></dd></div>
+<div><dt>Departure</dt><dd id="reviewDate"></dd></div>
+<div><dt>Contact email</dt><dd id="reviewEmail"></dd></div>
+</dl>
 <label class="publish-choice"><input name="publish" type="checkbox"> List my trip on the public board. This shares the airports, date, trip type, and types of help.</label>
 <label class="publish-choice"><input name="shareLanguage" type="checkbox" disabled> Also show my spoken languages on the public board.</label>
-<p id="formStatus" role="status"></p><button type="submit">Submit registration</button></form></dialog>
+</section>
+<p id="formStatus" role="status"></p>
+</div>
+<div class="registration-footer">
+<button id="previousStep" type="button" class="outline" hidden>Back</button>
+<button id="continueStep" type="submit">Continue</button>
+</div>
+</form>
+</dialog>
 </body></html>

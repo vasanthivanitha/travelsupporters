@@ -230,5 +230,99 @@ legend { padding-inline: .25rem; font-weight: 800; }
 }
 .table-controls label:first-child { flex: 1 1 18rem; }
 .table-controls label:last-child { flex: 0 1 18rem; }
-.form-group { margin-top: 1.15rem; padding: .85rem 1rem; }
-.form-group .fields { margin: .35rem 0 .25rem; }
+
+.registration-dialog {
+  --form-accent: #4838a0;
+  --form-accent-hover: #35267f;
+  --form-tint: #eeebfa;
+  --form-banner: #211b45;
+  width: min(690px, calc(100% - 2rem));
+  max-height: 92dvh;
+  padding: 0;
+  border: 0;
+  border-radius: 1.1rem;
+  box-shadow: 0 24px 65px #11172e55;
+}
+.registration-dialog[data-role="offer"] {
+  --form-accent: #136259;
+  --form-accent-hover: #0d4e47;
+  --form-tint: #e6f5f1;
+  --form-banner: #123b3a;
+}
+.registration-header {
+  padding: 1.45rem clamp(1rem, 4vw, 2rem) 1.15rem;
+  background: var(--form-banner);
+  color: white;
+}
+.registration-header h2 { font-size: clamp(1.7rem, 4vw, 2.5rem); }
+.registration-header .close { color: white; border-color: #ffffff70; }
+.registration-header .close:hover { background: #ffffff22; }
+.registration-header :focus-visible { outline-color: white; }
+.registration-progress {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 1.15rem 0 0;
+  padding: 0;
+  gap: .4rem;
+  list-style: none;
+}
+.registration-progress li {
+  border-top: 3px solid #ffffff40;
+  padding-top: .4rem;
+  color: #e4e0ef;
+  font-size: .875rem;
+}
+.registration-progress .complete { border-color: #ffffff85; }
+.registration-progress [aria-current="step"] {
+  border-color: var(--peach);
+  color: white;
+  font-weight: 800;
+}
+.registration-body { padding: 1.35rem clamp(1rem, 4vw, 2rem) .85rem; }
+.registration-step h3 {
+  margin: 0 0 .75rem;
+  font-size: clamp(1.25rem, 3vw, 1.55rem);
+  line-height: 1.25;
+}
+.registration-step h3:focus { outline: none; }
+.registration-note { margin: .5rem 0 0; font-size: .9375rem; }
+.itinerary {
+  padding: .75rem 1rem;
+  background: var(--form-tint);
+  border-radius: .65rem;
+}
+.itinerary summary { font-weight: 700; cursor: pointer; }
+.itinerary .fields { margin-bottom: .25rem; }
+.trip-preview {
+  margin: .75rem 0 1rem;
+  padding: .3rem 1rem;
+  border-radius: .7rem;
+  background: var(--form-tint);
+}
+.trip-preview div {
+  display: grid;
+  grid-template-columns: minmax(6rem, 1fr) minmax(0, 2fr);
+  gap: .65rem;
+  padding-block: .65rem;
+}
+.trip-preview div + div { border-top: 1px solid var(--line); }
+.trip-preview dt { font-weight: 700; }
+.trip-preview dd { margin: 0; overflow-wrap: anywhere; }
+.registration-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: .65rem;
+  padding: .85rem clamp(1rem, 4vw, 2rem);
+  border-top: 1px solid var(--line);
+  background: white;
+}
+.registration-footer button[type="submit"] { background: var(--form-accent); }
+.registration-footer button[type="submit"]:hover { background: var(--form-accent-hover); }
+.registration-footer button.outline { color: var(--form-accent); border-color: var(--form-accent); }
+@media (max-width: 460px) {
+  .registration-dialog { width: calc(100% - 1rem); }
+  .registration-progress li { font-size: .8rem; }
+  .registration-footer button[type="submit"] { flex: 1; }
+}

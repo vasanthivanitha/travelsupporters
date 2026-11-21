@@ -15,6 +15,11 @@ const dateFormat = new Intl.DateTimeFormat("en-US", {dateStyle: "medium"});
 const count = document.querySelector("#count");
 const formStatus = document.querySelector("#formStatus");
 const registrationStatus = document.querySelector("#registrationStatus");
+const registrationSteps = [...form.querySelectorAll(".registration-step")];
+const progressItems = [...form.querySelectorAll(".registration-progress li")];
+const previousStep = document.querySelector("#previousStep");
+const continueStep = document.querySelector("#continueStep");
+let activeStep = 0;
 let pendingRegistration;
 let role;
 
@@ -179,6 +184,57 @@ async function loadTrips() {
     retryTrips.hidden = false;
   }
 }
+function showRegistrationStep(index, focus = true) {
+  activeStep = index;
+  for (const [position, step] of registrationSteps.entries()) {
+    step.hidden = position !== index;
+    const item = progressItems[position];
+    if (position === index) item.setAttribute("aria-current", "step");
+    else item.removeAttribute("aria-current");
+    item.classList.toggle("complete", position < index);
+  }
+  previousStep.hidden = index === 0;
+  const isReview = index === registrationSteps.length - 1;
+  continueStep.textContent = isReview ? (role === "offer" ? "Send support offer" : "Send companion request") : "Continue";
+  formStatus.textContent = "";
+  if (isReview) {
+    const { from, to, date, email } = form.elements;
+    document.querySelector("#reviewRoute").textContent = airport(from.value) + " to " + airport(to.value);
+    document.querySelector("#reviewDate").textContent = travelDate({date: date.value});
+    document.querySelector("#reviewEmail").textContent = email.value;
+  }
+  if (focus) {
+    editor.scrollTop = 0;
+    registrationSteps[index].querySelector("h3").focus({preventScroll: true});
+  }
+}
+
+function validateRegistrationStep(index) {
+  const step = registrationSteps[index];
+  const controls = [...step.querySelectorAll("input, select, textarea")];
+  const invalid = controls.find(control => control.willValidate && !control.validity.valid);
+  if (invalid) {
+    showRegistrationStep(index);
+    const details = invalid.closest("details");
+    if (details) details.open = true;
+    invalid.reportValidity();
+    return false;
+  }
+  if (index === 1 && !form.elements.name.value.trim()) {
+    showRegistrationStep(index);
+    formStatus.textContent = "Enter your full name.";
+    form.elements.name.focus();
+    return false;
+  }
+  if (index === 2 && (!form.elements.language.value.trim() ||
+      (!form.elements.help.value.trim() && !form.querySelector('input[name="support"]:checked')))) {
+    showRegistrationStep(index);
+    formStatus.textContent = "Enter a language, then choose a type of help or add a short note.";
+    return false;
+  }
+  return true;
+}
+
 function openForm(selectedRole) {
   role = selectedRole;
   form.reset();
@@ -187,19 +243,25 @@ function openForm(selectedRole) {
   form.elements.date.min = localDate(new Date());
   form.querySelectorAll("input[list]").forEach(updateAirport);
   const offering = role === "offer";
+  editor.dataset.role = role;
   document.querySelector("#formTitle").textContent = offering ? "Offer help on your trip" : "Request a travel companion";
   document.querySelector("#tripForLabel").hidden = offering;
   document.querySelector("#scopeLabel").hidden = !offering;
   document.querySelector("#elderLabel").hidden = !offering;
   document.querySelector("#paymentLabel").hidden = !offering;
-  document.querySelector("#travelerDetails").textContent = offering ? "How you can help" : "Languages and preferences";
+  document.querySelector("#preferencesHeading").textContent = offering ? "What support can you offer?" : "What would make the trip easier?";
   document.querySelector("#supportLegend").textContent = offering ? "What can you help with?" : "What would you like help with?";
   document.querySelector("#notesLabel").textContent = offering ? "Anything else the traveler should know? (optional)" : "Anything else your companion should know? (optional)";
   form.elements.help.placeholder = offering ? "e.g. I can meet you near the check-in counter" : "e.g. I’d like someone to walk with me to the connecting gate";
+  form.querySelector(".itinerary").open = false;
+  showRegistrationStep(0, false);
   editor.showModal();
+  editor.scrollTop = 0;
+  registrationSteps[0].querySelector("h3").focus({preventScroll: true});
 }
 document.querySelectorAll("[data-role]").forEach(button => button.addEventListener("click", () => openForm(button.dataset.role)));
 document.querySelector(".close").addEventListener("click", () => editor.close());
+previousStep.addEventListener("click", () => showRegistrationStep(activeStep - 1));
 filters.addEventListener("submit", event => {
   event.preventDefault();
   search = new URLSearchParams([...new FormData(filters)].filter(([, value]) => value));
@@ -214,14 +276,16 @@ form.elements.publish.addEventListener("change", () => {
 });
 form.addEventListener("submit", async event => {
   event.preventDefault();
+  if (continueStep.disabled || !validateRegistrationStep(activeStep)) return;
+  if (activeStep < registrationSteps.length - 1) {
+    showRegistrationStep(activeStep + 1);
+    return;
+  }
+  if (!registrationSteps.every((_, index) => validateRegistrationStep(index))) return;
   const fields = new FormData(form);
   const details = Object.fromEntries(fields);
   const { from, to, name, email, date, language, flight, help, connection, flex, traveler, scope } = details;
   const support = fields.getAll("support");
-  if (!name.trim() || !language.trim() || (!help.trim() && !support.length)) {
-    formStatus.textContent = "Enter a full name and language, then choose a type of help or add a short note.";
-    return;
-  }
   const trip = {
     role, date, support, email: email.trim(), publish: fields.has("publish"), shareLanguage: fields.has("shareLanguage"),
     connection: connection.toUpperCase(), flex: Number(flex),
@@ -241,13 +305,12 @@ form.addEventListener("submit", async event => {
     formStatus.textContent = "Open the HTTPS website before submitting a registration.";
     return;
   }
-  const submit = form.querySelector('[type="submit"]');
-  if (submit.disabled) return;
   const payload = JSON.stringify(trip);
   if (pendingRegistration?.payload !== payload) {
     pendingRegistration = {payload, id: crypto.randomUUID()};
   }
-  submit.disabled = true;
+  continueStep.disabled = true;
+  previousStep.disabled = true;
   const close = form.querySelector(".close");
   close.disabled = true;
   formStatus.textContent = "Submitting your registration…";
@@ -278,11 +341,12 @@ form.addEventListener("submit", async event => {
   } catch {
     formStatus.textContent = "Registration could not be confirmed. Please try again.";
   } finally {
-    submit.disabled = false;
+    continueStep.disabled = false;
+    previousStep.disabled = false;
     close.disabled = false;
   }
 });
 editor.addEventListener("cancel", event => {
-  if (form.querySelector('[type="submit"]').disabled) event.preventDefault();
+  if (continueStep.disabled) event.preventDefault();
 });
 loadTrips();
