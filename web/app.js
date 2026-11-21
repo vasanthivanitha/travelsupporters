@@ -8,7 +8,10 @@ const supportTypes = {
 };
 const filters = document.querySelector("#filters");
 const form = document.querySelector("#tripForm");
-const editor = document.querySelector("#editor");
+const registration = document.querySelector("#registration");
+const cancelRegistration = document.querySelector("#cancelRegistration");
+const registrationButtons = [...document.querySelectorAll("button[data-role]")];
+let registrationTrigger;
 const tripResults = document.querySelector("#tripResults");
 const tripRows = document.querySelector("#tripRows");
 const dateFormat = new Intl.DateTimeFormat("en-US", {dateStyle: "medium"});
@@ -184,7 +187,7 @@ async function loadTrips() {
     retryTrips.hidden = false;
   }
 }
-function showRegistrationStep(index, focus = true) {
+function showRegistrationStep(index) {
   activeStep = index;
   for (const [position, step] of registrationSteps.entries()) {
     step.hidden = position !== index;
@@ -203,10 +206,8 @@ function showRegistrationStep(index, focus = true) {
     document.querySelector("#reviewDate").textContent = travelDate({date: date.value});
     document.querySelector("#reviewEmail").textContent = email.value;
   }
-  if (focus) {
-    editor.scrollTop = 0;
-    registrationSteps[index].querySelector("h3").focus({preventScroll: true});
-  }
+  registrationSteps[index].querySelector("h3").focus({preventScroll: true});
+  registration.scrollIntoView({block: "start"});
 }
 
 function validateRegistrationStep(index) {
@@ -235,15 +236,28 @@ function validateRegistrationStep(index) {
   return true;
 }
 
-function openForm(selectedRole) {
-  role = selectedRole;
+function showRegistration(visible) {
+  registration.hidden = !visible;
+  for (const button of registrationButtons) {
+    button.setAttribute("aria-expanded", String(visible && button.dataset.role === role));
+  }
+}
+
+function openForm(button) {
+  if (continueStep.disabled) return;
+  registrationTrigger = button;
+  if (!registration.hidden && role === button.dataset.role) {
+    showRegistrationStep(activeStep);
+    return;
+  }
+  role = button.dataset.role;
   form.reset();
   form.elements.shareLanguage.disabled = true;
   formStatus.textContent = "";
   form.elements.date.min = localDate(new Date());
   form.querySelectorAll("input[list]").forEach(updateAirport);
   const offering = role === "offer";
-  editor.dataset.role = role;
+  registration.dataset.role = role;
   document.querySelector("#formTitle").textContent = offering ? "Offer help on your trip" : "Request a travel companion";
   document.querySelector("#tripForLabel").hidden = offering;
   document.querySelector("#scopeLabel").hidden = !offering;
@@ -254,13 +268,14 @@ function openForm(selectedRole) {
   document.querySelector("#notesLabel").textContent = offering ? "Anything else the traveler should know? (optional)" : "Anything else your companion should know? (optional)";
   form.elements.help.placeholder = offering ? "e.g. I can meet you near the check-in counter" : "e.g. I’d like someone to walk with me to the connecting gate";
   form.querySelector(".itinerary").open = false;
-  showRegistrationStep(0, false);
-  editor.showModal();
-  editor.scrollTop = 0;
-  registrationSteps[0].querySelector("h3").focus({preventScroll: true});
+  showRegistration(true);
+  showRegistrationStep(0);
 }
-document.querySelectorAll("[data-role]").forEach(button => button.addEventListener("click", () => openForm(button.dataset.role)));
-document.querySelector(".close").addEventListener("click", () => editor.close());
+registrationButtons.forEach(button => button.addEventListener("click", () => openForm(button)));
+cancelRegistration.addEventListener("click", () => {
+  showRegistration(false);
+  registrationTrigger.focus();
+});
 previousStep.addEventListener("click", () => showRegistrationStep(activeStep - 1));
 filters.addEventListener("submit", event => {
   event.preventDefault();
@@ -311,8 +326,7 @@ form.addEventListener("submit", async event => {
   }
   continueStep.disabled = true;
   previousStep.disabled = true;
-  const close = form.querySelector(".close");
-  close.disabled = true;
+  cancelRegistration.disabled = true;
   formStatus.textContent = "Submitting your registration…";
   try {
     const response = await fetch(endpoint, {
@@ -327,7 +341,7 @@ form.addEventListener("submit", async event => {
       return;
     }
     pendingRegistration = null;
-    editor.close();
+    showRegistration(false);
     registrationStatus.hidden = false;
     registrationStatus.textContent = "Registration received. Save your reference number: " + result.id;
     registrationStatus.focus();
@@ -343,10 +357,7 @@ form.addEventListener("submit", async event => {
   } finally {
     continueStep.disabled = false;
     previousStep.disabled = false;
-    close.disabled = false;
+    cancelRegistration.disabled = false;
   }
-});
-editor.addEventListener("cancel", event => {
-  if (continueStep.disabled) event.preventDefault();
 });
 loadTrips();

@@ -7,57 +7,20 @@
 <meta name="description" content="Find a companion or help a fellow traveler on an international flight to or from India.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap">
-<link rel="stylesheet" href="style.css?v=5">
-<script defer src="app.js?v=5"></script>
+<link rel="stylesheet" href="style.css?v=6">
+<script defer src="app.js?v=6"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
-<header><nav class="wrap"><a class="brand" href="#"><span aria-hidden="true">✈</span> Travel Supports</a><div class="navlinks"><a href="#trips">Browse trips</a><a href="#how">How it works</a></div><button class="outline" data-role="offer">Offer help</button></nav></header>
+<header><nav class="wrap"><a class="brand" href="#"><span aria-hidden="true">✈</span> Travel Supports</a><div class="navlinks"><a href="#trips">Browse trips</a><a href="#how">How it works</a></div><button class="outline" aria-controls="registration" aria-expanded="false" data-role="offer">Offer help</button></nav></header>
 <main id="main">
 <section class="hero"><div class="wrap hero-layout">
-<div class="hero-copy"><p class="eyebrow">INTERNATIONAL TRAVEL TO AND FROM INDIA</p><h1>A long flight.<br><span>A familiar face.</span></h1><p class="intro">Flying to or from India? Travel with someone who can lend a hand. Find a companion for yourself or a loved one, or help a fellow traveler on a flight you’re already taking.</p><div class="actions"><button data-role="request">Find a companion</button><button class="secondary" data-role="offer">Offer support</button></div></div>
+<div class="hero-copy"><p class="eyebrow">INTERNATIONAL TRAVEL TO AND FROM INDIA</p><h1>A long flight.<br><span>A familiar face.</span></h1><p class="intro">Flying to or from India? Travel with someone who can lend a hand. Find a companion for yourself or a loved one, or help a fellow traveler on a flight you’re already taking.</p><div class="actions"><button aria-controls="registration" aria-expanded="false" data-role="request">Find a companion</button><button class="secondary" aria-controls="registration" aria-expanded="false" data-role="offer">Offer support</button></div></div>
 <figure class="hero-photo"><img src="airport.webp" alt="Two generations of travelers walking together through an airport" fetchpriority="high"></figure>
 </div></section>
-<section id="trips" class="board"><div class="wrap">
-<div class="section-heading"><div><p class="eyebrow">TRIP BOARD</p><h2>Find someone on your route</h2></div><p>Search upcoming companion requests and supporter offers by airport or type of help.</p></div>
-<form id="filters" class="filters">
-<label>Departure airport<input name="from" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. DEL" list="filter-from-airports" aria-describedby="filter-from-name" autocomplete="off"><datalist id="filter-from-airports"></datalist><span id="filter-from-name" class="airport-name" aria-live="polite"></span></label>
-<label>Arrival airport<input name="to" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. LHR" list="filter-to-airports" aria-describedby="filter-to-name" autocomplete="off"><datalist id="filter-to-airports"></datalist><span id="filter-to-name" class="airport-name" aria-live="polite"></span></label>
-<label>Trip type<select name="role"><option value="">All trips</option><option value="request">Looking for help</option><option value="offer">Offering help</option></select></label>
-<label>Type of help<select name="support"><option value="">Any type of help</option></select></label>
-<button type="submit">Search trips</button>
-</form>
-<div class="table-controls">
-<label>Search listings<input id="tripSearch" type="search" placeholder="Airport, language, date, or trip type"></label>
-<label>Sort by<select id="tripSort">
-<option value="soonest">Travel date · earliest first</option><option value="latest">Travel date · latest first</option>
-<option value="from">Departure airport · A–Z</option><option value="to">Arrival airport · A–Z</option>
-<option value="language">Languages spoken · A–Z</option><option value="role">Trip type · A–Z</option>
-</select></label>
-</div>
-<p id="registrationStatus" role="status" tabindex="-1" hidden></p><p id="count" role="status"></p><div id="tripResults" class="trip-results" hidden>
-<table class="trip-table" role="table" aria-label="Upcoming trips">
-<thead role="rowgroup"><tr role="row">
-<th role="columnheader" scope="col">Travel date</th>
-<th role="columnheader" scope="col">From</th>
-<th role="columnheader" scope="col">To</th>
-<th role="columnheader" scope="col">Trip type</th>
-<th role="columnheader" scope="col">Languages spoken</th>
-</tr></thead>
-<tbody id="tripRows" role="rowgroup"></tbody>
-</table>
-</div><button id="retryTrips" class="outline board-more" type="button" hidden>Retry</button>
-</div></section>
-<section id="how" class="wrap guide">
-<p class="eyebrow">HOW IT WORKS</p><h2>A little help goes a long way</h2>
-<div class="steps"><article><h3>Share your trip</h3><p>Older adults, women traveling alone, and family members can list the route, travel date, language, and kind of help needed.</p></article><article><h3>Find a fellow traveler</h3><p>Volunteers can offer help on a flight they’re already taking. Look for the same airports and travel date, then confirm the flight and any connections.</p></article><article><h3>Agree on the details</h3><p>Meet in a public area at the airport. Ask your airline directly for wheelchair, medical, or other formal assistance. Keep passport and booking details private.</p></article></div>
-</section>
-</main>
-<footer><div class="wrap"><a class="brand" href="#"><span aria-hidden="true">✈</span> Travel Supports</a><p>International travel to and from India</p></div></footer>
-<dialog id="editor" class="registration-dialog" aria-labelledby="formTitle">
+<section id="registration" class="registration-section" aria-labelledby="formTitle" hidden>
 <form id="tripForm" novalidate>
 <div class="registration-header">
-<button type="button" class="close outline" aria-label="Close form">×</button>
 <h2 id="formTitle"></h2>
 <ol class="registration-progress" aria-label="Registration progress">
 <li>Route</li><li>Contact</li><li>Preferences</li><li>Review</li>
@@ -123,9 +86,46 @@
 <p id="formStatus" role="status"></p>
 </div>
 <div class="registration-footer">
+<button id="cancelRegistration" type="button" class="outline">Cancel</button>
 <button id="previousStep" type="button" class="outline" hidden>Back</button>
 <button id="continueStep" type="submit">Continue</button>
 </div>
 </form>
-</dialog>
+</section>
+<section id="trips" class="board"><div class="wrap">
+<div class="section-heading"><div><p class="eyebrow">TRIP BOARD</p><h2>Find someone on your route</h2></div><p>Search upcoming companion requests and supporter offers by airport or type of help.</p></div>
+<form id="filters" class="filters">
+<label>Departure airport<input name="from" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. DEL" list="filter-from-airports" aria-describedby="filter-from-name" autocomplete="off"><datalist id="filter-from-airports"></datalist><span id="filter-from-name" class="airport-name" aria-live="polite"></span></label>
+<label>Arrival airport<input name="to" maxlength="3" pattern="[A-Za-z]{3}" placeholder="e.g. LHR" list="filter-to-airports" aria-describedby="filter-to-name" autocomplete="off"><datalist id="filter-to-airports"></datalist><span id="filter-to-name" class="airport-name" aria-live="polite"></span></label>
+<label>Trip type<select name="role"><option value="">All trips</option><option value="request">Looking for help</option><option value="offer">Offering help</option></select></label>
+<label>Type of help<select name="support"><option value="">Any type of help</option></select></label>
+<button type="submit">Search trips</button>
+</form>
+<div class="table-controls">
+<label>Search listings<input id="tripSearch" type="search" placeholder="Airport, language, date, or trip type"></label>
+<label>Sort by<select id="tripSort">
+<option value="soonest">Travel date · earliest first</option><option value="latest">Travel date · latest first</option>
+<option value="from">Departure airport · A–Z</option><option value="to">Arrival airport · A–Z</option>
+<option value="language">Languages spoken · A–Z</option><option value="role">Trip type · A–Z</option>
+</select></label>
+</div>
+<p id="registrationStatus" role="status" tabindex="-1" hidden></p><p id="count" role="status"></p><div id="tripResults" class="trip-results" hidden>
+<table class="trip-table" role="table" aria-label="Upcoming trips">
+<thead role="rowgroup"><tr role="row">
+<th role="columnheader" scope="col">Travel date</th>
+<th role="columnheader" scope="col">From</th>
+<th role="columnheader" scope="col">To</th>
+<th role="columnheader" scope="col">Trip type</th>
+<th role="columnheader" scope="col">Languages spoken</th>
+</tr></thead>
+<tbody id="tripRows" role="rowgroup"></tbody>
+</table>
+</div><button id="retryTrips" class="outline board-more" type="button" hidden>Retry</button>
+</div></section>
+<section id="how" class="wrap guide">
+<p class="eyebrow">HOW IT WORKS</p><h2>A little help goes a long way</h2>
+<div class="steps"><article><h3>Share your trip</h3><p>Older adults, women traveling alone, and family members can list the route, travel date, language, and kind of help needed.</p></article><article><h3>Find a fellow traveler</h3><p>Volunteers can offer help on a flight they’re already taking. Look for the same airports and travel date, then confirm the flight and any connections.</p></article><article><h3>Agree on the details</h3><p>Meet in a public area at the airport. Ask your airline directly for wheelchair, medical, or other formal assistance. Keep passport and booking details private.</p></article></div>
+</section>
+</main>
+<footer><div class="wrap"><a class="brand" href="#"><span aria-hidden="true">✈</span> Travel Supports</a><p>International travel to and from India</p></div></footer>
 </body></html>
